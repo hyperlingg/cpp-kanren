@@ -1,6 +1,31 @@
 # cpp-kanren
 An implementation of mini-kanren in C++
 
+# Build instructions
+Preliminaries are
+* `gcc` version 9.3.0 (or at least full support of C++ 17)
+* `CMake` version 3.0 or larger
+
+If you want to run tests
+* `Boost` version 1.71 or larger
+
+## Basic build
+```
+mkdir build
+cd build
+cmake ../
+cmake --build .
+```
+
+## Build and run tests
+```
+cd test
+mkdir test_build
+cd test_build
+cmake ../
+cmake --build .
+```
+
 # design draft
 
 ## fresh variables
