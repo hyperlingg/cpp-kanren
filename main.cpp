@@ -1,9 +1,5 @@
 /*
-relies on C++ 17, compiled with
-
-    clang++-9 -stdlib=libstdc++ -std=gnu++17 main.cpp
-
-author : Jonas Lingg
+Author : Jonas Lingg (2021)
 */
 
 #include "include/cpp-kanren.h"

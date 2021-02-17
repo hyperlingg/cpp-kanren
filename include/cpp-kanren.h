@@ -1,3 +1,8 @@
+/*
+Header-only implementation of mini-kanren
+Author : Jonas Lingg (2021)
+*/
+
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -10,9 +15,11 @@ using namespace std;
 // frame 4
 using variable = shared_ptr<string>;
 // frames 6,7
-using value = vector<variant<variable, string>>;
-using associate = variant<variable, value>;
-using association = std::pair<variable, associate>;
+using constant = string;
+using atom = variant<variable, constant>; // atomic values
+using value = variant<variable, constant,
+                      vector<atom>>; // a list of values is also a value
+using association = std::pair<variable, value>;
 
 // frames 9,10
 // NOTE: can not contain two or more associations with the same first element
@@ -26,19 +33,27 @@ bool isEmptyS(substitution sub) { return sub.empty(); }
 // frame 18
 optional<association> assv(value val, substitution sub) {
 
-  if (val.size() == 1) {
-    auto fst = val.front();
-    if (holds_alternative<variable>(fst)) {
-      // get shared pointer for comparison
-      variable var = get<variable>(fst);
-
-      for (auto it = sub.begin(); it != sub.end(); ++it) {
-        if (it->first == var) {
-          return *it;
-        }
+  if (holds_alternative<variable>(val)) {
+    variable var = get<variable>(val);
+    for (auto it = sub.begin(); it != sub.end(); ++it) {
+      if (it->first == var) {
+        return *it;
       }
     }
   }
-
   return {};
+}
+
+value walk(value val, substitution sub) {
+  if (holds_alternative<variable>(val)) {
+    auto assvOpt = assv(val, sub);
+    if (assvOpt.has_value()) {
+      auto assvValue = assvOpt.value();
+      if (auto fst = assvValue.first) {
+        return walk(fst, sub);
+      }
+    } else {
+      return val;
+    }
+  }
 }
