@@ -54,3 +54,48 @@ value walk(value val, substitution sub) {
   }
   return val;
 }
+
+bool occurs(variable var, value val, substitution sub) {
+  auto walkRes = walk(val, sub);
+
+  if (holds_alternative<variable>(walkRes)) {
+    auto walkVar = get<variable>(walkRes);
+    return walkVar == var;
+  }
+
+  if (holds_alternative<vector<atom>>(walkRes)) {
+    auto walkPair = get<vector<atom>>(walkRes);
+
+    for (auto elem : walkPair) {
+      bool occ;
+      if (holds_alternative<variable>(elem)) {
+        auto valArg = get<variable>(elem);
+        occ = occurs(var, valArg, sub);
+      }
+
+      // TODO is this even necessary?
+      // occur check is interested in vars
+      if (holds_alternative<constant>(elem)) {
+        auto valArg = get<constant>(elem);
+        occ = occurs(var, valArg, sub);
+      }
+
+      if (occ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+optional<substitution> ext_s(variable var, value val, substitution sub) {
+
+  if (occurs(var, val, sub)) {
+    return {};
+  }
+
+  sub.push_back({var, val});
+
+  return sub;
+}
