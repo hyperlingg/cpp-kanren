@@ -19,7 +19,7 @@ using constant = string;
 using atom = variant<variable, constant>; // atomic values
 using value = variant<variable, constant,
                       vector<atom>>; // a list of values is also a value
-using association = std::pair<variable, value>;
+using association = pair<variable, value>;
 
 // frames 9,10
 // NOTE: can not contain two or more associations with the same first element
@@ -32,7 +32,6 @@ bool isEmptyS(substitution sub) { return sub.empty(); }
 
 // frame 18
 optional<association> assv(value val, substitution sub) {
-
   if (holds_alternative<variable>(val)) {
     variable var = get<variable>(val);
     for (auto it = sub.begin(); it != sub.end(); ++it) {
@@ -49,11 +48,9 @@ value walk(value val, substitution sub) {
     auto assvOpt = assv(val, sub);
     if (assvOpt.has_value()) {
       auto assvValue = assvOpt.value();
-      if (auto fst = assvValue.first) {
-        return walk(fst, sub);
-      }
-    } else {
-      return val;
+      auto snd = assvValue.second;
+      return walk(snd, sub);
     }
   }
+  return val;
 }
