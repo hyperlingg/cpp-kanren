@@ -13,13 +13,24 @@ Author : Jonas Lingg (2021)
 using namespace std;
 
 // frame 4
-using variable = shared_ptr<string>;
+// using variable = shared_ptr<string>;
 // frames 6,7
-using constant = string;
-using atom = variant<variable, constant>; // atomic values
-using value = variant<variable, constant,
+// using constant = string;
+// using atom = variant<variable, constant>; // atomic values
+
+// https://en.cppreference.com/w/cpp/language/union
+// union-like class
+struct atomValue {
+  enum { VAR, CONST } tag;
+  string data;
+};
+
+using atom = shared_ptr<atomValue>;
+using variable = atom;
+using constant = atom;
+using value = variant<atom,
                       vector<atom>>; // a list of values is also a value
-using association = pair<variable, value>;
+using association = pair<atom, value>;
 
 // frames 9,10
 // NOTE: can not contain two or more associations with the same first element
@@ -30,13 +41,18 @@ using substitution = vector<association>;
 // based on frame 11
 bool isEmptyS(substitution sub) { return sub.empty(); }
 
+
+// TODO API for the construction and handling of variables and constants
+
 // frame 18
 optional<association> assv(value val, substitution sub) {
-  if (holds_alternative<variable>(val)) {
-    variable var = get<variable>(val);
-    for (auto it = sub.begin(); it != sub.end(); ++it) {
-      if (it->first == var) {
-        return *it;
+  if (holds_alternative<atom>(val)) {
+    atom atm = get<atom>(val);
+    if (atm->tag == atomValue::VAR) {
+      for (auto it = sub.begin(); it != sub.end(); ++it) {
+        if (it->first == atm) {
+          return make_optional(*it);
+        }
       }
     }
   }
@@ -44,7 +60,7 @@ optional<association> assv(value val, substitution sub) {
 }
 
 value walk(value val, substitution sub) {
-  if (holds_alternative<variable>(val)) {
+  if (holds_alternative<atom>(val)) {
     auto assvOpt = assv(val, sub);
     if (assvOpt.has_value()) {
       auto assvValue = assvOpt.value();
@@ -55,12 +71,15 @@ value walk(value val, substitution sub) {
   return val;
 }
 
-bool occurs(variable var, value val, substitution sub) {
+bool occurs(atom var, value val, substitution sub) {
+  // TODO check var for being a var
   auto walkRes = walk(val, sub);
 
-  if (holds_alternative<variable>(walkRes)) {
-    auto walkVar = get<variable>(walkRes);
-    return walkVar == var;
+  if (holds_alternative<atom>(walkRes)) {
+    auto walkVar = get<atom>(walkRes);
+    if (walkVar->tag == atomValue::VAR) {
+      return walkVar == var;
+    }
   }
 
   if (holds_alternative<vector<atom>>(walkRes)) {
@@ -68,16 +87,14 @@ bool occurs(variable var, value val, substitution sub) {
 
     for (auto elem : walkPair) {
       bool occ;
-      if (holds_alternative<variable>(elem)) {
-        auto valArg = get<variable>(elem);
-        occ = occurs(var, valArg, sub);
+      if (elem->tag == atomValue::VAR) {
+        occ = occurs(var, elem, sub);
       }
 
       // TODO is this even necessary?
       // occur check is interested in vars
-      if (holds_alternative<constant>(elem)) {
-        auto valArg = get<constant>(elem);
-        occ = occurs(var, valArg, sub);
+      if (elem->tag == atomValue::CONST) {
+        occ = occurs(var, elem, sub);
       }
 
       if (occ) {
@@ -89,8 +106,8 @@ bool occurs(variable var, value val, substitution sub) {
   return false;
 }
 
-optional<substitution> ext_s(variable var, value val, substitution sub) {
-
+optional<substitution> ext_s(atom var, value val, substitution sub) {
+// TODO check var for being a var
   if (occurs(var, val, sub)) {
     return {};
   }

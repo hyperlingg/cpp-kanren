@@ -5,7 +5,10 @@ Author : Jonas Lingg (2021)
 #include "include/cpp-kanren.h"
 
 int main() {
+
+  // TODO encapsulate in a function, this is unreadable
   // constructing a variable
-  variable var = make_shared<string>("hello");
-  cout << *var << endl;
+  atomValue atmvVal = {atomValue::VAR,"x"};
+  variable var = make_shared<atomValue>(atmvVal);
+  cout << var->data << endl;
 }
