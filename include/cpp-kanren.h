@@ -41,8 +41,8 @@ using substitution = vector<association>;
 // based on frame 11
 bool isEmptyS(substitution sub) { return sub.empty(); }
 
-
-// TODO API for the construction and handling of variables and constants
+// TODO API for the construction and handling of variables, constants and value
+// lists
 
 // frame 18
 optional<association> assv(value val, substitution sub) {
@@ -107,7 +107,7 @@ bool occurs(atom var, value val, substitution sub) {
 }
 
 optional<substitution> ext_s(atom var, value val, substitution sub) {
-// TODO check var for being a var
+  // TODO check var for being a var
   if (occurs(var, val, sub)) {
     return {};
   }
