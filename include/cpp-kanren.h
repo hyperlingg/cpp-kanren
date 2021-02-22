@@ -68,7 +68,7 @@ optional<string> getStringValue(value val) {
       if (iter != ls.begin()) {
         resultString += ", ";
       }
-      
+
       resultString += iter->get()->data;
     }
     resultString += " )";
@@ -149,4 +149,48 @@ optional<substitution> ext_s(atom var, value val, substitution sub) {
   sub.push_back({var, val});
 
   return sub;
+}
+
+optional<substitution> unify(value u, value v, substitution sub) {
+  auto uWalk = walk(u, sub);
+  auto vWalk = walk(v, sub);
+
+  if (uWalk == vWalk) {
+    return sub;
+  }
+
+  if (holds_alternative<atom>(uWalk)) {
+    auto uAtom = get<atom>(uWalk);
+    if (uAtom->tag == atomValue::VAR) {
+      return ext_s(uAtom, v, sub);
+    }
+  }
+
+  if (holds_alternative<atom>(vWalk)) {
+    auto vAtom = get<atom>(vWalk);
+    if (vAtom->tag == atomValue::VAR) {
+      return ext_s(vAtom, u, sub);
+    }
+  }
+
+  if (holds_alternative<value_list>(uWalk) &&
+      holds_alternative<value_list>(vWalk)) {
+    auto vList = get<value_list>(vWalk);
+    auto uList = get<value_list>(uWalk);
+
+    for (auto elem : vList) {
+      if (!uList.empty()) {
+        auto sUnify = unify(uList.front(), elem, sub);
+        if (!sUnify.has_value()) { // 'and' condition
+          break;
+        }
+      } else {
+        return {}; // last cond line (else #f)
+      }
+
+      uList.erase(uList.begin()); // pop the first element
+    }
+  }
+
+  return {};
 }
