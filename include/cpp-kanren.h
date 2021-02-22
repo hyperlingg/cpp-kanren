@@ -28,8 +28,9 @@ struct atomValue {
 using atom = shared_ptr<atomValue>;
 using variable = atom;
 using constant = atom;
+using value_list = vector<atom>; // TODO no real list of list yet
 using value = variant<atom,
-                      vector<atom>>; // a list of values is also a value
+                      value_list>; // a list of values is also a value
 using association = pair<atom, value>;
 
 // frames 9,10
@@ -41,8 +42,41 @@ using substitution = vector<association>;
 // based on frame 11
 bool isEmptyS(substitution sub) { return sub.empty(); }
 
-// TODO API for the construction and handling of variables, constants and value
-// lists
+variable makeVar(string name) {
+  atomValue atmvVal = {atomValue::VAR, name};
+  return make_shared<atomValue>(atmvVal);
+}
+
+constant makeConst(string name) {
+  atomValue atmvVal = {atomValue::CONST, name};
+  return make_shared<atomValue>(atmvVal);
+}
+
+// NOTE only depth 1 (non-recursive)
+optional<string> getStringValue(value val) {
+  if (holds_alternative<atom>(val)) {
+    atom atm = get<atom>(val);
+    if (atm) {
+      return atm->data;
+    }
+  }
+
+  if (holds_alternative<value_list>(val)) {
+    value_list ls = get<value_list>(val);
+    string resultString = "( ";
+    for (auto iter = ls.begin(); iter != ls.end(); iter++) {
+      if (iter != ls.begin()) {
+        resultString += ", ";
+      }
+      
+      resultString += iter->get()->data;
+    }
+    resultString += " )";
+    return resultString;
+  }
+
+  return {};
+}
 
 // frame 18
 optional<association> assv(value val, substitution sub) {

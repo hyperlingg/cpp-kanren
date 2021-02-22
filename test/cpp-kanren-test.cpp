@@ -3,27 +3,31 @@
 #include <boost/test/unit_test.hpp>
 
 #include "../include/cpp-kanren.h"
-atomValue atmvVal = {atomValue::VAR, "x"};
-variable x = make_shared<atomValue>(atmvVal);
-// variable x = make_shared<string>("x");
-atomValue atmvVal2 = {atomValue::VAR, "y"};
-variable y = make_shared<atomValue>(atmvVal2);
-atomValue atmvVal3 = {atomValue::VAR, "z"};
-variable z = make_shared<atomValue>(atmvVal3);
-atomValue atmvVal4 = {atomValue::VAR, "x"};
-variable x2 = make_shared<atomValue>(atmvVal4);
+variable x = makeVar("x");
+variable y = makeVar("y");
+variable z = makeVar("z");
+variable x2 = makeVar("x");
+variable w = makeVar("w");
+variable v = makeVar("v");
 
-atomValue atmvVal5 = {atomValue::CONST, "a"};
-constant a = make_shared<atomValue>(atmvVal5);
+constant a = makeConst("a");
 
-vector<atom> ls = {x, y, a};
-value valueLs = ls;
+value_list ls = {x, y, a};
+value_list ls2 = {x, makeConst("e"), z};
 
 association assoc1 = {x, y};
 association assoc2 = {y, z};
-association assoc3 = {z, valueLs};
+association assoc3 = {z, ls};
+
+association assoc4 = {z, a};
+association assoc5 = {x, w};
+association assoc6 = {y, z};
 
 substitution sub1 = {assoc1, assoc2};
+substitution sub2 = {assoc4, assoc5, assoc6};
+substitution sub3 = {{x, y}, {v, x}, {w, x}};
+
+substitution sub4 = {{x, makeConst("b")}, {z, y}, {w, ls2}};
 
 BOOST_AUTO_TEST_SUITE(variable_equality)
 
@@ -32,6 +36,25 @@ BOOST_AUTO_TEST_CASE(unequal_var) { BOOST_CHECK(x != y); }
 BOOST_AUTO_TEST_CASE(equal_var) { BOOST_CHECK(x == x); }
 
 BOOST_AUTO_TEST_CASE(unequal_var_same_name) { BOOST_CHECK(x != x2); }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(string_representations)
+
+BOOST_AUTO_TEST_CASE(variable_string) {
+  auto res = getStringValue(x);
+  BOOST_CHECK(res.has_value() && res.value() == "x");
+}
+
+BOOST_AUTO_TEST_CASE(constant_string) {
+  auto res = getStringValue(a);
+  BOOST_CHECK(res.has_value() && res.value() == "a");
+}
+
+BOOST_AUTO_TEST_CASE(value_list_string) {
+  auto res = getStringValue(ls);
+  BOOST_CHECK(res.has_value() && res.value() == "( x, y, a )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -50,6 +73,64 @@ BOOST_AUTO_TEST_CASE(assv_has_value_y) {
 BOOST_AUTO_TEST_CASE(assv_no_value) {
   optional<association> res = assv(z, sub1);
   BOOST_CHECK(!res.has_value());
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(walk_function_test)
+
+BOOST_AUTO_TEST_CASE(walk_z_frame13) {
+  auto walkRes = walk(z, sub2);
+  if (holds_alternative<atom>(walkRes)) {
+    BOOST_CHECK(get<atom>(walkRes) == a);
+  } else {
+    BOOST_CHECK(false);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(walk_y_frame14) {
+  auto walkRes = walk(y, sub2);
+  if (holds_alternative<atom>(walkRes)) {
+    BOOST_CHECK(get<atom>(walkRes) == a);
+  } else {
+    BOOST_CHECK(false);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(walk_x_frame15) {
+  auto walkRes = walk(x, sub2);
+  if (holds_alternative<atom>(walkRes)) {
+    BOOST_CHECK(get<atom>(walkRes) == w);
+  } else {
+    BOOST_CHECK(false);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(walk_x_frame16) {
+  auto walkRes = walk(x, sub3);
+  if (holds_alternative<atom>(walkRes)) {
+    BOOST_CHECK(get<atom>(walkRes) == y);
+  } else {
+    BOOST_CHECK(false);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(walk_v_frame16) {
+  auto walkRes = walk(x, sub3);
+  if (holds_alternative<atom>(walkRes)) {
+    BOOST_CHECK(get<atom>(walkRes) == y);
+  } else {
+    BOOST_CHECK(false);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(walk_w_frame17) {
+  auto walkRes = walk(w, sub4);
+  if (holds_alternative<value_list>(walkRes)) {
+    BOOST_CHECK(get<value_list>(walkRes) == ls2);
+  } else {
+    BOOST_CHECK(false);
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
