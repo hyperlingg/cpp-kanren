@@ -134,3 +134,32 @@ BOOST_AUTO_TEST_CASE(walk_w_frame17) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(occurs_function_test)
+
+BOOST_AUTO_TEST_CASE(occurs_true_basic) { BOOST_CHECK(occurs(x, x, {})); }
+
+BOOST_AUTO_TEST_CASE(occurs_true_recurse) {
+  value_list ls = {y};
+  BOOST_CHECK(occurs(x, ls, {{y, x}}));
+}
+
+BOOST_AUTO_TEST_CASE(occurs_false) { BOOST_CHECK(!occurs(z, a, sub3)); }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(ext_s_function_test)
+
+BOOST_AUTO_TEST_CASE(ext_s_empty) {
+  value_list ls = {x};
+  BOOST_CHECK(!ext_s(x, ls, {}));
+}
+
+
+BOOST_AUTO_TEST_CASE(ext_s_nempty) {
+  value_list ls = {y};
+  BOOST_CHECK(!ext_s(x, ls, {{y,x}}));
+}
+
+
+BOOST_AUTO_TEST_SUITE_END()
