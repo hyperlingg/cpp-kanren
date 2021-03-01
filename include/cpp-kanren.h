@@ -9,6 +9,7 @@ Author : Jonas Lingg (2021)
 #include <string>
 #include <variant>
 #include <vector>
+#include <coroutine>
 
 using namespace std;
 
@@ -28,9 +29,9 @@ struct atomValue {
 using atom = shared_ptr<atomValue>;
 using variable = atom;
 using constant = atom;
-using value_list = vector<atom>; // TODO no real list of list yet
+using value_list = vector<atom>;  // TODO no real list of list yet
 using value = variant<atom,
-                      value_list>; // a list of values is also a value
+                      value_list>;  // a list of values is also a value
 using association = pair<atom, value>;
 
 // frames 9,10
@@ -181,16 +182,21 @@ optional<substitution> unify(value u, value v, substitution sub) {
     for (auto elem : vList) {
       if (!uList.empty()) {
         auto sUnify = unify(uList.front(), elem, sub);
-        if (!sUnify.has_value()) { // 'and' condition
+        if (!sUnify.has_value()) {  // 'and' condition
           break;
         }
       } else {
-        return {}; // last cond line (else #f)
+        return {};  // last cond line (else #f)
       }
 
-      uList.erase(uList.begin()); // pop the first element
+      uList.erase(uList.begin());  // pop the first element
     }
   }
 
   return {};
 }
+
+// bool eqv(value u, value v) {
+//   co_await substitution sub;
+//   unify(u,v,sub);
+//  }

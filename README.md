@@ -41,3 +41,7 @@ make_shared<std::string>("var");
 since pointers refer to a space in memory rather than a value, they
 allow us to distinguish variables with the same name. Using `shared_ptr` of C++
 ensures the absence of `new`/`delete` related memory leaks.
+
+# gcc-10 source build
+## configuration
+../gcc-10/configure --disable-multilib
