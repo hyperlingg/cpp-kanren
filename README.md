@@ -42,6 +42,13 @@ since pointers refer to a space in memory rather than a value, they
 allow us to distinguish variables with the same name. Using `shared_ptr` of C++
 ensures the absence of `new`/`delete` related memory leaks.
 
-# gcc-10 source build
+# gcc-11 source build
 ## configuration
 ../gcc-10/configure --disable-multilib
+
+## `libstdc++` problems
+If gcc-11 is installed in the default directory /usr/local then it will use an outdated libstdc++.
+Setting the load library path new helps, e.g.:
+```
+export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
+```

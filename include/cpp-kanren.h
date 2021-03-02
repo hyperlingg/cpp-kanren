@@ -9,7 +9,8 @@ Author : Jonas Lingg (2021)
 #include <string>
 #include <variant>
 #include <vector>
-#include <coroutine>
+// #include <coroutine>
+#include "stream.h"
 
 using namespace std;
 
