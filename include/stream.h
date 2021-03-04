@@ -52,6 +52,11 @@ struct Stream {
   };
 };
 
+struct stream_elem {
+  enum { SUSPEND, VALUE } tag;
+  int value; // TODO -> substitution
+};
+
 // exemplary stream generator functions for testing purposes
 Stream<int> getNextInf(int start = 0, int step = 1) noexcept {
   auto value = start;
@@ -69,9 +74,14 @@ Stream<int> getNextFin(int start = 0, int end = 10, int step = 1) noexcept {
   }
 }
 
+// TODO encode suspensions
 Stream<int> append_inf(Stream<int>& s, Stream<int>& t) noexcept {
   while (s.next()) {
-    co_yield s.getValue();
+    if (s.getValue() == 4) {  // if suspension -> swap streams
+      std::swap(t, s);
+    } else {
+      co_yield s.getValue();
+    }
   }
 
   while (t.next()) {
@@ -84,7 +94,7 @@ auto disj(Stream<int> g1, Stream<int> g2) {
   return [&](auto a) { return append_inf(g1, g2); };
 }
 
-Stream<int> take_inf(int n, Stream<int> s) {
+Stream<int> take_inf(int n, Stream<int>& s) {
   for (int i = 0; i < n; i++) {
     s.next();
     co_yield s.getValue();
