@@ -2,7 +2,8 @@
 #include <iostream>
 #include <memory>
 
-// source: https://www.modernescpp.com/index.php/c-20-an-infinite-data-stream-with-coroutines
+// source:
+// https://www.modernescpp.com/index.php/c-20-an-infinite-data-stream-with-coroutines
 template <typename T>
 struct Stream {
   struct promise_type;
@@ -51,7 +52,24 @@ struct Stream {
   };
 };
 
-Stream<int> append_inf(Stream<int> s, Stream<int> t) noexcept {
+// exemplary stream generator functions for testing purposes
+Stream<int> getNextInf(int start = 0, int step = 1) noexcept {
+  auto value = start;
+  for (int i = 0;; ++i) {
+    co_yield value;
+    value += step;
+  }
+}
+
+Stream<int> getNextFin(int start = 0, int end = 10, int step = 1) noexcept {
+  auto value = start;
+  for (int i = 0; i < end; ++i) {
+    co_yield value;
+    value += step;
+  }
+}
+
+Stream<int> append_inf(Stream<int>& s, Stream<int>& t) noexcept {
   while (s.next()) {
     co_yield s.getValue();
   }
