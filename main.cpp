@@ -18,7 +18,9 @@ int main() {
   auto gen = getNextInf();
   for (int i = 0; i <= 10; ++i) {
     gen.next();
-    std::cout << " " << gen.getValue();  // (7)
+    if (gen.getValue().tag == stream_elem::VALUE) {
+      std::cout << " " << gen.getValue().value;
+    }
   }
 
   std::cout << "\n\n";
@@ -27,7 +29,9 @@ int main() {
   auto gen2 = getNextInf(100, -10);
   for (int i = 0; i <= 20; ++i) {
     gen2.next();
-    std::cout << " " << gen2.getValue();
+    if (gen2.getValue().tag == stream_elem::VALUE) {
+      std::cout << " " << gen2.getValue().value;
+    }
   }
 
   std::cout << std::endl;
@@ -36,27 +40,33 @@ int main() {
   auto gen3 = getNextFin();
   for (int i = 0; i <= 5; ++i) {
     gen3.next();
-    std::cout << " " << gen3.getValue();
+    if (gen3.getValue().tag == stream_elem::VALUE) {
+      std::cout << " " << gen3.getValue().value;
+    }
   }
 
   std::cout << std::endl;
 
   std::cout << "append_inf():";
-  Stream<int> stream = getNextInf(100, -10);
+  Stream<stream_elem> stream = getNextInf(100, -10);
   auto stream2 = getNextFin();
   auto append_stream = append_inf(stream2, stream);
   for (int i = 0; i <= 20; ++i) {
     if (append_stream.next()) {
-      std::cout << " " << append_stream.getValue();
+      if (append_stream.getValue().tag == stream_elem::VALUE) {
+        std::cout << " " << append_stream.getValue().value;
+      }
     }
   }
   std::cout << std::endl;
 
   std::cout << "take_inf():";
-  Stream<int> infStream = getNextInf(100, -10);
+  Stream<stream_elem> infStream = getNextInf(100, -10);
   auto takeStream = take_inf(5, infStream);
   while (takeStream.next()) {
-    std::cout << " " << takeStream.getValue();
+    if (takeStream.getValue().tag == stream_elem::VALUE) {
+      std::cout << " " << takeStream.getValue().value;
+    }
   }
   std::cout << std::endl;
 }

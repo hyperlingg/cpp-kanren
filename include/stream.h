@@ -54,30 +54,34 @@ struct Stream {
 
 struct stream_elem {
   enum { SUSPEND, VALUE } tag;
-  int value; // TODO -> substitution
+  int value;  // TODO -> substitution
 };
 
 // exemplary stream generator functions for testing purposes
-Stream<int> getNextInf(int start = 0, int step = 1) noexcept {
+Stream<stream_elem> getNextInf(int start = 0, int step = 1) noexcept {
   auto value = start;
+  co_yield {stream_elem::SUSPEND, 0};
   for (int i = 0;; ++i) {
-    co_yield value;
+    co_yield {stream_elem::VALUE, value};
     value += step;
   }
 }
 
-Stream<int> getNextFin(int start = 0, int end = 10, int step = 1) noexcept {
+Stream<stream_elem> getNextFin(int start = 0, int end = 10,
+                               int step = 1) noexcept {
   auto value = start;
   for (int i = 0; i < end; ++i) {
-    co_yield value;
+    co_yield {stream_elem::VALUE, value};
     value += step;
   }
 }
 
 // TODO encode suspensions
-Stream<int> append_inf(Stream<int>& s, Stream<int>& t) noexcept {
+Stream<stream_elem> append_inf(Stream<stream_elem>& s,
+                               Stream<stream_elem>& t) noexcept {
   while (s.next()) {
-    if (s.getValue() == 4) {  // if suspension -> swap streams
+    if (s.getValue().tag ==
+        stream_elem::SUSPEND) {  // if suspension -> swap streams
       std::swap(t, s);
     } else {
       co_yield s.getValue();
@@ -90,13 +94,17 @@ Stream<int> append_inf(Stream<int>& s, Stream<int>& t) noexcept {
 }
 
 // TODO definition of goals and their application is missing
-auto disj(Stream<int> g1, Stream<int> g2) {
+auto disj(Stream<stream_elem> g1, Stream<stream_elem> g2) {
   return [&](auto a) { return append_inf(g1, g2); };
 }
 
-Stream<int> take_inf(int n, Stream<int>& s) {
+Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) {
   for (int i = 0; i < n; i++) {
     s.next();
-    co_yield s.getValue();
+    if (s.getValue().tag == stream_elem::VALUE) {
+      co_yield s.getValue();
+    } else {
+      i--;  // suspension does not carry a value and we want n values
+    }
   }
 }
