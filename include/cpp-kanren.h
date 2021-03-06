@@ -188,7 +188,6 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
   }
 }
 
-// TODO definition of goals and their application is missing
 goal disj(goal g1, goal g2) {
   return [&](substitution sub) {
     auto stream1 = g1(sub);
