@@ -1,8 +1,8 @@
 #define BOOST_TEST_MODULE cpp - kanren - test
+#include "../include/cpp-kanren.h"
+
 #include <boost/test/tools/output_test_stream.hpp>
 #include <boost/test/unit_test.hpp>
-
-#include "../include/cpp-kanren.h"
 variable x = makeVar("x");
 variable y = makeVar("y");
 variable z = makeVar("z");
@@ -155,11 +155,9 @@ BOOST_AUTO_TEST_CASE(ext_s_empty) {
   BOOST_CHECK(!ext_s(x, ls, {}));
 }
 
-
 BOOST_AUTO_TEST_CASE(ext_s_nempty) {
   value_list ls = {y};
-  BOOST_CHECK(!ext_s(x, ls, {{y,x}}));
+  BOOST_CHECK(!ext_s(x, ls, {{y, x}}));
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()

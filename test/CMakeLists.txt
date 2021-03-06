@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 2.8.11)
+set(CMAKE_CXX_COMPILER "/usr/local/bin/g++")
 project(cpp-kanren-testing)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 enable_testing()
@@ -11,6 +12,7 @@ set(Boost_ADDITIONAL_VERSIONS "1.71" "1.71.0")
 # finds boost, triggers an error otherwise
 find_package(Boost 1.71 REQUIRED COMPONENTS unit_test_framework)
 
+add_definitions( "-fcoroutines -fno-exceptions" )
 add_subdirectory(../include
              [EXCLUDE_FROM_ALL])
 
