@@ -19,7 +19,7 @@ int main() {
   for (int i = 0; i <= 10; ++i) {
     gen.next();
     if (gen.getValue().tag == stream_elem::VALUE) {
-      std::cout << " " << gen.getValue().value;
+      // std::cout << " " << gen.getValue().value;
     }
   }
 
@@ -30,7 +30,7 @@ int main() {
   for (int i = 0; i <= 20; ++i) {
     gen2.next();
     if (gen2.getValue().tag == stream_elem::VALUE) {
-      std::cout << " " << gen2.getValue().value;
+      // std::cout << " " << gen2.getValue().value;
     }
   }
 
@@ -41,7 +41,7 @@ int main() {
   for (int i = 0; i <= 5; ++i) {
     gen3.next();
     if (gen3.getValue().tag == stream_elem::VALUE) {
-      std::cout << " " << gen3.getValue().value;
+      // std::cout << " " << gen3.getValue().value;
     }
   }
 
@@ -54,7 +54,7 @@ int main() {
   for (int i = 0; i <= 20; ++i) {
     if (append_stream.next()) {
       if (append_stream.getValue().tag == stream_elem::VALUE) {
-        std::cout << " " << append_stream.getValue().value;
+        // std::cout << " " << append_stream.getValue().value;
       }
     }
   }
@@ -65,7 +65,7 @@ int main() {
   auto takeStream = take_inf(5, infStream);
   while (takeStream.next()) {
     if (takeStream.getValue().tag == stream_elem::VALUE) {
-      std::cout << " " << takeStream.getValue().value;
+      // std::cout << " " << takeStream.getValue().value;
     }
   }
   std::cout << std::endl;

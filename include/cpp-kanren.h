@@ -9,37 +9,12 @@ Author : Jonas Lingg (2021)
 #include <string>
 #include <variant>
 #include <vector>
-// #include <coroutine>
+
 #include "stream.h"
 
 using namespace std;
 
-// frame 4
-// using variable = shared_ptr<string>;
-// frames 6,7
-// using constant = string;
-// using atom = variant<variable, constant>; // atomic values
-
-// https://en.cppreference.com/w/cpp/language/union
-// union-like class
-struct atomValue {
-  enum { VAR, CONST } tag;
-  string data;
-};
-
-using atom = shared_ptr<atomValue>;
-using variable = atom;
-using constant = atom;
-using value_list = vector<atom>;  // TODO no real list of list yet
-using value = variant<atom,
-                      value_list>;  // a list of values is also a value
-using association = pair<atom, value>;
-
-// frames 9,10
-// NOTE: can not contain two or more associations with the same first element
-// (frame 12); maybe implement as a class where the constructor checks this
-// property
-using substitution = vector<association>;
+#define empty_s ((substitution){})
 
 // based on frame 11
 bool isEmptyS(substitution sub) { return sub.empty(); }
@@ -197,7 +172,58 @@ optional<substitution> unify(value u, value v, substitution sub) {
   return {};
 }
 
-// bool eqv(value u, value v) {
-//   co_await substitution sub;
-//   unify(u,v,sub);
-//  }
+Stream<stream_elem> append_inf(Stream<stream_elem>& s,
+                               Stream<stream_elem>& t) noexcept {
+  while (s.next()) {
+    if (s.getValue().tag ==
+        stream_elem::SUSPEND) {  // if suspension -> swap streams
+      std::swap(t, s);
+    } else {
+      co_yield s.getValue();
+    }
+  }
+
+  while (t.next()) {
+    co_yield t.getValue();
+  }
+}
+
+// TODO definition of goals and their application is missing
+goal disj(goal g1, goal g2) {
+  return [&](substitution sub) {
+    auto stream1 = g1(sub);
+    auto stream2 = g2(sub);
+    return append_inf(stream1, stream2);
+  };
+}
+
+Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) {
+  for (int i = 0; i < n; i++) {
+    s.next();
+    if (s.getValue().tag == stream_elem::VALUE) {
+      co_yield s.getValue();
+    } else {
+      i--;  // suspension does not carry a value and we want n values
+    }
+  }
+}
+
+auto eqv(value u, value v) {
+  return [&](substitution sub) -> Stream<stream_elem> {
+    auto unifyRes = unify(u, v, sub);
+    if (unifyRes.has_value()) {
+      sub = unifyRes.value();
+    } else {
+      sub = {};
+    }
+    co_yield {stream_elem::VALUE, sub};
+  };
+}
+
+auto s_goal(substitution sub) {
+  return [&]() -> Stream<stream_elem> { co_yield {stream_elem::VALUE, sub}; };
+}
+
+auto u_goal(substitution sub) {
+  return [&]() -> Stream<stream_elem> { co_yield {stream_elem::VALUE, {}}; };
+}

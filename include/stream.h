@@ -1,6 +1,13 @@
+/*
+Stream data structure for mini-kanren
+Author : Jonas Lingg (2021)
+*/
+
 #include <coroutine>
 #include <iostream>
 #include <memory>
+
+#include "Definitions.h"
 
 // source:
 // https://www.modernescpp.com/index.php/c-20-an-infinite-data-stream-with-coroutines
@@ -54,15 +61,17 @@ struct Stream {
 
 struct stream_elem {
   enum { SUSPEND, VALUE } tag;
-  int value;  // TODO -> substitution
+  substitution value;  // TODO -> substitution
 };
+
+using goal = std::function< Stream<stream_elem>(substitution) >;
 
 // exemplary stream generator functions for testing purposes
 Stream<stream_elem> getNextInf(int start = 0, int step = 1) noexcept {
   auto value = start;
-  co_yield {stream_elem::SUSPEND, 0};
+  co_yield {stream_elem::SUSPEND, {}};
   for (int i = 0;; ++i) {
-    co_yield {stream_elem::VALUE, value};
+    co_yield {stream_elem::VALUE, {}};
     value += step;
   }
 }
@@ -71,40 +80,7 @@ Stream<stream_elem> getNextFin(int start = 0, int end = 10,
                                int step = 1) noexcept {
   auto value = start;
   for (int i = 0; i < end; ++i) {
-    co_yield {stream_elem::VALUE, value};
+    co_yield {stream_elem::VALUE, {}};
     value += step;
-  }
-}
-
-// TODO encode suspensions
-Stream<stream_elem> append_inf(Stream<stream_elem>& s,
-                               Stream<stream_elem>& t) noexcept {
-  while (s.next()) {
-    if (s.getValue().tag ==
-        stream_elem::SUSPEND) {  // if suspension -> swap streams
-      std::swap(t, s);
-    } else {
-      co_yield s.getValue();
-    }
-  }
-
-  while (t.next()) {
-    co_yield t.getValue();
-  }
-}
-
-// TODO definition of goals and their application is missing
-auto disj(Stream<stream_elem> g1, Stream<stream_elem> g2) {
-  return [&](auto a) { return append_inf(g1, g2); };
-}
-
-Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) {
-  for (int i = 0; i < n; i++) {
-    s.next();
-    if (s.getValue().tag == stream_elem::VALUE) {
-      co_yield s.getValue();
-    } else {
-      i--;  // suspension does not carry a value and we want n values
-    }
   }
 }
