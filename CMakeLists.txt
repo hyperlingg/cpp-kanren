@@ -4,7 +4,6 @@ project(cpp-kanren VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # set(CMAKE_INSTALL_RPATH "/usr/local/lib64/")
 
 

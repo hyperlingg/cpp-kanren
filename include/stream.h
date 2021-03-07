@@ -61,10 +61,12 @@ struct Stream {
 
 struct stream_elem {
   enum { SUSPEND, VALUE } tag;
-  substitution value;  // TODO -> substitution
+  substitution value;
 };
 
-using goal = std::function< Stream<stream_elem>(substitution) >;
+using goal_singleton = std::function<stream_elem(substitution)>;
+using goal_stream = std::function<Stream<stream_elem>(substitution)>;
+using goal = variant<goal_singleton, goal_stream>;
 
 // exemplary stream generator functions for testing purposes
 Stream<stream_elem> getNextInf(int start = 0, int step = 1) noexcept {

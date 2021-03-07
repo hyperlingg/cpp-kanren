@@ -69,4 +69,19 @@ int main() {
     }
   }
   std::cout << std::endl;
+
+  std::cout << "eqv problem:";
+  auto x = makeVar("x");
+  auto y = makeVar("y");
+
+  auto test = eqv(x, y)(empty_s);
+  auto streamified = eqv_streamify(test);
+  streamified.next();  // NOTE this is essential!!!
+  auto streamValueSize = streamified.getValue().value.size();
+  auto testSize = test.value.size();
+  substitution singleton = {{x, y}};
+
+  std::cout << "test size: " << testSize << std::endl;
+  std::cout << "streamValueSize: " << streamValueSize << std::endl;
+  std::cout << "singleton size: " << singleton.size() << std::endl;
 }
