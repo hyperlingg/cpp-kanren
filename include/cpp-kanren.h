@@ -222,34 +222,25 @@ Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) noexcept {
   }
 }
 
-// goal eqv_stream_lambda(value u, value v) noexcept {
-//   std::cout << "enter eqv()" << std::endl;
+// TODO this only doesn't work because of the lambda
+// maybe i could achieve the same functionality with a template, e.g.
+// eqv<u,v>() : substitution -> goal_stream
+goal_stream eqv_stream_lambda(value u, value v) noexcept {
+  std::cout << "enter eqv()" << std::endl;
 
-//   auto lambda = [u, v](substitution sub) noexcept -> Stream<stream_elem> {
-//     auto unifyRes = unify(u, v, sub);
+  auto lambda = [u, v](substitution sub) noexcept -> Stream<stream_elem> {
+    auto unifyRes = unify(u, v, sub);
 
-//     substitution res;
-//     if (unifyRes.has_value()) {
-//       res = unifyRes.value();
-//     }
-//     co_yield {stream_elem::VALUE, res};
-//   };
+    substitution res;
+    if (unifyRes.has_value()) {
+      res = unifyRes.value();
+    }
+    stream_elem resElem = {stream_elem::VALUE, res};
+    co_yield resElem;
+  };
 
-//   return lambda;
-// }
-
-// Stream<stream_elem> eqv_stream2(value u, value v, substitution sub) noexcept
-// {
-//   // std::cout << "enter eqv()" << std::endl;
-//   auto unifyRes = unify(u, v, sub);
-//   substitution res;
-//   if (unifyRes.has_value()) {
-//     res = unifyRes.value();
-//   }
-
-//   stream_elem yield = {stream_elem::VALUE, res};
-//   co_yield yield;
-// }
+  return lambda;
+}
 
 // NOTE one possible solution for eqv; problematic return type: needs to be
 // streamified. That is tolerable since eqv is supposed to return either a
@@ -271,14 +262,34 @@ auto eqv(value u, value v) {
 
 Stream<stream_elem> eqv_streamify(stream_elem str) noexcept { co_yield str; }
 
-// goal s_goal(substitution sub) {
-//   return [&](substitution sub) noexcept -> Stream<stream_elem> {
-//     co_yield {stream_elem::VALUE, sub};
-//   };
-// }
+Stream<stream_elem> s_goal_helper(substitution sub) noexcept {
+  stream_elem res = {stream_elem::VALUE,
+                     sub};  // ...this was enough to remove the segfault. WHY???
+  co_yield res;
+}
 
-// goal u_goal(substitution sub) {
-//   return [&](substitution sub) noexcept -> Stream<stream_elem> {
-//     co_yield {stream_elem::VALUE, {}};
-//   };
+goal_stream s_goal() {
+  // return function pointer instead of lambda
+  return s_goal_helper;
+}
+
+Stream<stream_elem> u_goal_helper(substitution sub) noexcept {
+  stream_elem res = {stream_elem::VALUE, {}};
+  co_yield res;
+}
+
+goal_stream u_goal() { return u_goal_helper; }
+
+Stream<stream_elem> never_o_goal_helper(substitution sub) noexcept {
+  stream_elem sus = {stream_elem::SUSPEND, {}};
+  while (true) {
+    co_yield sus;
+  }
+}
+
+goal_stream never_o_goal(substitution sub) { return never_o_goal_helper; }
+
+// goal_stream always_o_helper(substitution sub) noexcept {
+//   goal_stream res = disj(s_goal(), s_goal());
+//   co_yield res;
 // }
