@@ -60,6 +60,15 @@ int main() {
   }
   std::cout << std::endl;
 
+  std::cout << "disj():" << std::endl;
+  goal_stream disj_goal = disj(s_goal(), u_goal());
+  auto resStream = disj_goal(empty_s);
+  auto disj_test = disj(s_goal(), u_goal())(empty_s);
+  while (resStream.next()) {
+    std::cout << " " << resStream.getValue().tag;
+  }
+  std::cout << std::endl;
+
   std::cout << "take_inf():";
   Stream<stream_elem> infStream = getNextInf(100, -10);
   auto takeStream = take_inf(5, infStream);
@@ -74,9 +83,6 @@ int main() {
   auto x = makeVar("x");
   auto y = makeVar("y");
 
-
-
-
   auto test = eqv(x, y)(empty_s);
   auto streamified = eqv_streamify(test);
   streamified.next();  // NOTE this is essential (and here it works...)
@@ -86,7 +92,7 @@ int main() {
 
   auto s_goal_test = s_goal();
   auto eval_s_goal = s_goal_test(singleton);
-  eval_s_goal.next(); 
+  eval_s_goal.next();
   auto s_goal_value = eval_s_goal.getValue();
   std::cout << "s_goal size" << s_goal_value.value.size() << std::endl;
 

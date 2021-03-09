@@ -6,6 +6,7 @@ Author : Jonas Lingg (2021)
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <string>
 #include <variant>
 #include <vector>
@@ -13,6 +14,10 @@ Author : Jonas Lingg (2021)
 #include "stream.h"
 
 using namespace std;
+
+// if this works: make it a class member
+queue<goal_stream> goalStreamQueue;
+queue<value> eqvValueQueue;
 
 #define empty_s ((substitution){})
 
@@ -202,13 +207,41 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
   }
 }
 
+// TODO can i ensure that disj_helper gets the right arguments?
+// if this insurance becomes necessary it will get inelegant, e.g.
+// by tagging the function pointer returned by disj as well as the stacked args
+// with an ID
+Stream<stream_elem> disj_helper(substitution sub) noexcept {
+  // pop g1 and g2 from the argument stack:
+  goal_stream g1, g2;
+  if (!goalStreamQueue.empty()) {
+    g1 = goalStreamQueue.front();
+    goalStreamQueue.pop();
+    if (!goalStreamQueue.empty()) {
+      g2 = goalStreamQueue.front();
+      goalStreamQueue.pop();
+    } else {
+      terminate();
+    }
+  } else {
+    terminate();
+  }
+  // generate the two streams to be appended:
+  auto stream1 = g1(sub);
+  auto stream2 = g2(sub);
+
+  Stream<stream_elem> appendStream = append_inf(stream1, stream2);
+  while (appendStream.next()) {
+    co_yield appendStream.getValue();
+  }
+}
+
 // TODO convert goal_stream to goal by distinguishing variants
-goal_stream disj(goal_stream g1, goal_stream g2) {
-  return [&](substitution sub) {
-    auto stream1 = g1(sub);
-    auto stream2 = g2(sub);
-    return append_inf(stream1, stream2);
-  };
+goal_stream disj(goal_stream g1, goal_stream g2) noexcept {
+  // push g1 and g2 to an argument queue, then return function pointer
+  goalStreamQueue.emplace(g1);
+  goalStreamQueue.emplace(g2);
+  return disj_helper;
 }
 
 Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) noexcept {
