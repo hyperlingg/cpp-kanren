@@ -255,42 +255,60 @@ Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) noexcept {
   }
 }
 
-// TODO this only doesn't work because of the lambda
-// maybe i could achieve the same functionality with a template, e.g.
-// eqv<u,v>() : substitution -> goal_stream
-goal_stream eqv_stream_lambda(value u, value v) noexcept {
-  std::cout << "enter eqv()" << std::endl;
+// // TODO this only doesn't work because of the lambda
+// // maybe i could achieve the same functionality with a template, e.g.
+// // eqv<u,v>() : substitution -> goal_stream
+// goal_stream eqv_stream_lambda(value u, value v) noexcept {
+//   std::cout << "enter eqv()" << std::endl;
 
-  auto lambda = [u, v](substitution sub) noexcept -> Stream<stream_elem> {
-    auto unifyRes = unify(u, v, sub);
+//   auto lambda = [u, v](substitution sub) noexcept -> Stream<stream_elem> {
+//     auto unifyRes = unify(u, v, sub);
 
-    substitution res;
-    if (unifyRes.has_value()) {
-      res = unifyRes.value();
-    }
-    stream_elem resElem = {stream_elem::VALUE, res};
-    co_yield resElem;
-  };
+//     substitution res;
+//     if (unifyRes.has_value()) {
+//       res = unifyRes.value();
+//     }
+//     stream_elem resElem = {stream_elem::VALUE, res};
+//     co_yield resElem;
+//   };
 
-  return lambda;
-}
+//   return lambda;
+// }
 
 // NOTE one possible solution for eqv; problematic return type: needs to be
 // streamified. That is tolerable since eqv is supposed to return either a
 // singleton or an empty stream.
-auto eqv(value u, value v) {
-  return [u, v](substitution sub) -> stream_elem {
-    auto unifyRes = unify(u, v, sub);
-    std::cout << "eqv() : after unify" << std::endl;
-    if (unifyRes.has_value()) {
-      std::cout << "eqv() : unify has value" << std::endl;
-      sub = unifyRes.value();
+
+Stream<stream_elem> eqv_helper(substitution sub) {
+  value u, v;
+  if (!eqvValueQueue.empty()) {
+    u = eqvValueQueue.front();
+    eqvValueQueue.pop();
+    if (!eqvValueQueue.empty()) {
+      v = eqvValueQueue.front();
+      eqvValueQueue.pop();
     } else {
-      sub = {};
-      std::cout << "eqv() : unify no value" << std::endl;
+      terminate();
     }
-    return {stream_elem::VALUE, sub};
-  };
+  } else {
+    terminate();
+  }
+
+  auto unifyRes = unify(u, v, sub);
+  if (unifyRes.has_value()) {
+    sub = unifyRes.value();
+  } else {
+    sub = {};
+  }
+  stream_elem res = {stream_elem::VALUE, sub};
+  co_yield res;
+}
+
+goal_stream eqv(value u, value v) {
+  eqvValueQueue.emplace(u);
+  eqvValueQueue.emplace(v);
+
+  return eqv_helper;
 }
 
 Stream<stream_elem> eqv_streamify(stream_elem str) noexcept { co_yield str; }
@@ -320,9 +338,17 @@ Stream<stream_elem> never_o_goal_helper(substitution sub) noexcept {
   }
 }
 
-goal_stream never_o_goal(substitution sub) { return never_o_goal_helper; }
+goal_stream never_o_goal() { return never_o_goal_helper; }
 
-// goal_stream always_o_helper(substitution sub) noexcept {
-//   goal_stream res = disj(s_goal(), s_goal());
-//   co_yield res;
-// }
+Stream<stream_elem> always_o_helper(substitution sub) noexcept {
+  stream_elem sus = {stream_elem::SUSPEND, {}};
+  co_yield sus;
+  goal_stream res = disj(s_goal(),
+                         s_goal());  // TODO inspect this
+  Stream<stream_elem> goalEval = res(sub);
+  while (goalEval.next()) {
+    co_yield goalEval.getValue();
+  }
+}
+
+goal_stream always_o() { return always_o_helper; }

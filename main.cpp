@@ -84,10 +84,8 @@ int main() {
   auto y = makeVar("y");
 
   auto test = eqv(x, y)(empty_s);
-  auto streamified = eqv_streamify(test);
-  streamified.next();  // NOTE this is essential (and here it works...)
-  auto streamValueSize = streamified.getValue().value.size();
-  auto testSize = test.value.size();
+  test.next();// NOTE this is essential
+  auto streamValueSize = test.getValue().value.size();
   substitution singleton = {{x, y}};
 
   auto s_goal_test = s_goal();
@@ -96,7 +94,6 @@ int main() {
   auto s_goal_value = eval_s_goal.getValue();
   std::cout << "s_goal size" << s_goal_value.value.size() << std::endl;
 
-  std::cout << "test size: " << testSize << std::endl;
   std::cout << "streamValueSize: " << streamValueSize << std::endl;
   std::cout << "singleton size: " << singleton.size() << std::endl;
 }
