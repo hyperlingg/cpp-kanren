@@ -207,6 +207,78 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
   }
 }
 
+// Stream<stream_elem> append_map(goal_stream g, Stream<stream_elem>& s) noexcept {
+//   while (s.next()) {
+//     if (s.getValue().tag == stream_elem::VALUE) {
+//       substitution sub = s.getValue().value;
+//       Stream<stream_elem> mapStream = g(sub);
+//       while (mapStream.next()) {
+//         if (mapStream.getValue().tag == stream_elem::SUSPEND) {
+//           streamQueue.emplace(mapStream.getValue());  // TODO work on this
+//         } else {
+//           // s = append_inf(mapStream,s);
+//           co_yield mapStream.getValue();
+//         }
+//       }
+//     }
+//   }
+// }
+
+// NOTE resStream is an empty stream initially (or maybe a suspension?)
+Stream<stream_elem> append_map_helper(goal_stream g, Stream<stream_elem>& s,
+                                Stream<stream_elem>& resStream) noexcept {
+  while (s.next()) {
+    if (s.getValue().tag == stream_elem::VALUE) {
+      substitution sub = s.getValue().value;
+      auto mapStream = g(sub);
+      resStream = append_inf(resStream, mapStream);
+    }
+  }
+
+  while (resStream.next()) {
+    co_yield resStream.getValue();
+  }
+}
+
+Stream<stream_elem> append_map(goal_stream g,
+                                   Stream<stream_elem>& s) noexcept {
+  Stream<stream_elem> resStream = append_map_helper(g, s, s); // TODO empty stream
+  while (resStream.next()) {
+    co_yield resStream.getValue();
+  }
+}
+
+Stream<stream_elem> conj_helper(substitution sub) noexcept {
+  // pop g1 and g2 from the argument stack:
+  goal_stream g1, g2;
+  if (!goalStreamQueue.empty()) {
+    g1 = goalStreamQueue.front();
+    goalStreamQueue.pop();
+    if (!goalStreamQueue.empty()) {
+      g2 = goalStreamQueue.front();
+      goalStreamQueue.pop();
+    } else {
+      terminate();
+    }
+  } else {
+    terminate();
+  }
+  
+  auto appendMapStream = g1(sub); 
+  Stream<stream_elem> appendStream = append_map(g2, appendMapStream);
+  while (appendStream.next()) {
+    co_yield appendStream.getValue();
+  }
+}
+
+goal_stream conj(goal_stream g1, goal_stream g2) noexcept {
+  // push g1 and g2 to an argument queue, then return function pointer
+  // TODO decide on order of push operation (it's g2 first atm)
+  goalStreamQueue.emplace(g2);
+  goalStreamQueue.emplace(g1);
+  return conj_helper;
+}
+
 // TODO can i ensure that disj_helper gets the right arguments?
 // if this insurance becomes necessary it will get inelegant, e.g.
 // by tagging the function pointer returned by disj as well as the stacked args
@@ -315,7 +387,7 @@ Stream<stream_elem> eqv_streamify(stream_elem str) noexcept { co_yield str; }
 
 Stream<stream_elem> s_goal_helper(substitution sub) noexcept {
   stream_elem res = {stream_elem::VALUE,
-                     sub};  // ...this was enough to remove the segfault. WHY???
+                     sub};  // ...this was enough to remove the segfault.
   co_yield res;
 }
 
