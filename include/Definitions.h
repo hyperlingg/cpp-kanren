@@ -3,12 +3,12 @@ Type definitions for mini-kanren
 Author : Jonas Lingg (2021)
 */
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <variant>
 #include <vector>
-#include <functional>
 
 using namespace std;
 
@@ -32,3 +32,18 @@ using association = pair<atom, value>;
 // (frame 12); maybe implement as a class where the constructor checks this
 // property
 using substitution = vector<association>;
+
+
+
+// NOTE ok, this seems to work as an arbitrary-depth list implementation
+struct List {
+  variant<atom, unique_ptr<List>> cons;
+  unique_ptr<List> tail;
+};
+
+atomValue val2 = {atomValue::VAR,"a"};
+atom val1 = make_shared<atomValue>(val2);
+
+List testList = {val1, make_unique<List>(val1, nullptr)};
+
+List testList2 = {make_unique<List>(val1, make_unique<List>(val1,nullptr)),make_unique<List>(val1, nullptr) };

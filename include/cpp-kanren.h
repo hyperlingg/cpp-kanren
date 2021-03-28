@@ -18,8 +18,12 @@ using namespace std;
 // if this works: make it a class member
 queue<goal_stream> goalStreamQueue;
 queue<value> eqvValueQueue;
+queue<goal_stream> ifteQueue;
+queue<goal_stream> onceQueue;
 
 #define empty_s ((substitution){})
+#define empty_stream \
+  { stream_elem::VALUE, empty_s }
 
 // based on frame 11
 bool isEmptyS(substitution sub) { return sub.empty(); }
@@ -85,6 +89,38 @@ value walk(value val, substitution sub) {
     }
   }
   return val;
+}
+
+value walk_star(value val, substitution sub) {
+  auto walked_value = walk(val, sub);
+
+  if (holds_alternative<atom>(walked_value)) {
+    auto walked_value_atom = get<atom>(walked_value);
+    if (walked_value_atom->tag == atomValue::VAR) {
+      return val;
+    }
+  }
+
+  vector<atom> resList;
+  if (holds_alternative<vector<atom>>(walked_value)) {
+    auto walked_value_pair = get<vector<atom>>(walked_value);
+
+    for (auto elem : walked_value_pair) {
+      value res = walk_star(
+          elem, sub);  // TODO verify that this recursive call is sound
+
+      // test if value is atom to satisfy return type (NOTE: this is a
+      // workaround since list of list is not supported yet)
+      if (holds_alternative<atom>(res)) {
+        resList.push_back(get<atom>(res));
+      }
+      // end workaround
+    }
+
+    return resList;
+  }
+
+  return val;  // TODO verify this return type
 }
 
 bool occurs(atom var, value val, substitution sub) {
@@ -207,7 +243,8 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
   }
 }
 
-// Stream<stream_elem> append_map(goal_stream g, Stream<stream_elem>& s) noexcept {
+// Stream<stream_elem> append_map(goal_stream g, Stream<stream_elem>& s)
+// noexcept {
 //   while (s.next()) {
 //     if (s.getValue().tag == stream_elem::VALUE) {
 //       substitution sub = s.getValue().value;
@@ -226,7 +263,7 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
 
 // NOTE resStream is an empty stream initially (or maybe a suspension?)
 Stream<stream_elem> append_map_helper(goal_stream g, Stream<stream_elem>& s,
-                                Stream<stream_elem>& resStream) noexcept {
+                                      Stream<stream_elem>& resStream) noexcept {
   while (s.next()) {
     if (s.getValue().tag == stream_elem::VALUE) {
       substitution sub = s.getValue().value;
@@ -240,9 +277,9 @@ Stream<stream_elem> append_map_helper(goal_stream g, Stream<stream_elem>& s,
   }
 }
 
-Stream<stream_elem> append_map(goal_stream g,
-                                   Stream<stream_elem>& s) noexcept {
-  Stream<stream_elem> resStream = append_map_helper(g, s, s); // TODO empty stream
+Stream<stream_elem> append_map(goal_stream g, Stream<stream_elem>& s) noexcept {
+  Stream<stream_elem> resStream =
+      append_map_helper(g, s, s);  // TODO empty stream
   while (resStream.next()) {
     co_yield resStream.getValue();
   }
@@ -263,8 +300,8 @@ Stream<stream_elem> conj_helper(substitution sub) noexcept {
   } else {
     terminate();
   }
-  
-  auto appendMapStream = g1(sub); 
+
+  auto appendMapStream = g1(sub);
   Stream<stream_elem> appendStream = append_map(g2, appendMapStream);
   while (appendStream.next()) {
     co_yield appendStream.getValue();
@@ -327,30 +364,6 @@ Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) noexcept {
   }
 }
 
-// // TODO this only doesn't work because of the lambda
-// // maybe i could achieve the same functionality with a template, e.g.
-// // eqv<u,v>() : substitution -> goal_stream
-// goal_stream eqv_stream_lambda(value u, value v) noexcept {
-//   std::cout << "enter eqv()" << std::endl;
-
-//   auto lambda = [u, v](substitution sub) noexcept -> Stream<stream_elem> {
-//     auto unifyRes = unify(u, v, sub);
-
-//     substitution res;
-//     if (unifyRes.has_value()) {
-//       res = unifyRes.value();
-//     }
-//     stream_elem resElem = {stream_elem::VALUE, res};
-//     co_yield resElem;
-//   };
-
-//   return lambda;
-// }
-
-// NOTE one possible solution for eqv; problematic return type: needs to be
-// streamified. That is tolerable since eqv is supposed to return either a
-// singleton or an empty stream.
-
 Stream<stream_elem> eqv_helper(substitution sub) {
   value u, v;
   if (!eqvValueQueue.empty()) {
@@ -383,11 +396,10 @@ goal_stream eqv(value u, value v) {
   return eqv_helper;
 }
 
-Stream<stream_elem> eqv_streamify(stream_elem str) noexcept { co_yield str; }
+// Stream<stream_elem> eqv_streamify(stream_elem str) noexcept { co_yield str; }
 
 Stream<stream_elem> s_goal_helper(substitution sub) noexcept {
-  stream_elem res = {stream_elem::VALUE,
-                     sub};  // ...this was enough to remove the segfault.
+  stream_elem res = {stream_elem::VALUE, sub};
   co_yield res;
 }
 
@@ -424,3 +436,110 @@ Stream<stream_elem> always_o_helper(substitution sub) noexcept {
 }
 
 goal_stream always_o() { return always_o_helper; }
+
+goal call_fresh(std::string name, goal_abstraction funcGoal) {
+  auto var = makeVar(name);
+  return funcGoal(var);
+}
+
+variable reify_name(int n) {
+  std::string number, resString;
+
+  number = std::to_string(n);
+  resString = "_";
+  resString.append(number);  // e.g. "_1"
+
+  return makeVar(resString);
+}
+
+substitution reify_s(value val, substitution sub) {
+  auto walked_value = walk(val, sub);
+
+  if (holds_alternative<atom>(walked_value)) {
+    auto walked_value_atom = get<atom>(walked_value);
+    if (walked_value_atom->tag == atomValue::VAR) {
+      int subLength = sub.size();
+      variable reifiedVar = reify_name(subLength);
+      association resAssoc = {walked_value_atom, reifiedVar};
+      sub.push_back(resAssoc);
+    }
+  }
+
+  if (holds_alternative<vector<atom>>(walked_value)) {
+    auto walked_value_pair = get<vector<atom>>(walked_value);
+    for (auto elem : walked_value_pair) {
+      sub = reify_s(elem, sub);
+    }
+  }
+
+  return sub;
+}
+
+auto reify(value val) {
+  [val](substitution sub) -> value {
+    value walkedVal = walk_star(val, sub);
+    substitution reifiedSub = reify_s(walkedVal, empty_s);
+    return walk_star(walkedVal, reifiedSub);
+  };
+}
+
+auto run_goal(int n, goal_stream goal) {
+  Stream<stream_elem> streamRes = goal(empty_s);
+  return take_inf(n, streamRes);
+}
+
+Stream<stream_elem> ifte_helper(substitution sub) {
+  goal_stream g1 = ifteQueue.front();
+  ifteQueue.pop();
+  goal_stream g2 = ifteQueue.front();
+  ifteQueue.pop();
+  goal_stream g3 = ifteQueue.front();
+  ifteQueue.pop();
+  Stream<stream_elem> sub_inf = g1(sub);
+
+  while (sub_inf.next()) {
+    auto fstSub = sub_inf.getValue();
+
+    if (fstSub.tag == stream_elem::VALUE) {  // case (pair? sub_inf)
+      auto res = append_map(g2, sub_inf);
+      return res;
+    }
+
+    if (fstSub.tag == stream_elem::SUSPEND) {  // case (suspension? sub_inf)
+      sub_inf.next();  // is this even necessary? seems like a double next TODO
+                       // see once_helper
+    }
+  }
+
+  return g3(sub);  // case (null? sub_inf)
+}
+
+goal_stream ifte(goal_stream g1, goal_stream g2, goal_stream g3) {
+  ifteQueue.emplace(g1);
+  ifteQueue.emplace(g2);
+  ifteQueue.emplace(g3);
+
+  return ifte_helper;
+}
+
+Stream<stream_elem> once_helper(substitution sub) {
+  goal_stream g1 = onceQueue.front();
+  onceQueue.pop();
+  Stream<stream_elem> onceStream = g1(sub);
+
+  while (onceStream.next()) {
+    auto fstSub = onceStream.getValue();
+
+    if (fstSub.tag == stream_elem::VALUE) {  // case (pair? sub_inf)
+      stream_elem res = {stream_elem::VALUE, fstSub.value};
+      co_yield res;
+    }
+  }
+
+  co_yield empty_stream;
+}
+
+goal_stream once(goal_stream g1) {
+  onceQueue.emplace(g1);
+  return once_helper;
+}
