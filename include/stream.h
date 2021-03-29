@@ -70,20 +70,20 @@ using goal = variant<goal_singleton, goal_stream>;
 using goal_abstraction = std::function<goal(variable)>;
 
 // exemplary stream generator functions for testing purposes
-Stream<stream_elem> getNextInf(int start = 0, int step = 1) noexcept {
+Stream<int> getNextInf(int start = 0, int step = 1) noexcept {
   auto value = start;
-  co_yield {stream_elem::SUSPEND, {}};
+  // co_yield value;
   for (int i = 0;; ++i) {
-    co_yield {stream_elem::VALUE, {}};
+    co_yield value;
     value += step;
   }
 }
 
-Stream<stream_elem> getNextFin(int start = 0, int end = 10,
+Stream<int> getNextFin(int start = 0, int end = 10,
                                int step = 1) noexcept {
   auto value = start;
   for (int i = 0; i < end; ++i) {
-    co_yield {stream_elem::VALUE, {}};
+    co_yield value;
     value += step;
   }
 }
