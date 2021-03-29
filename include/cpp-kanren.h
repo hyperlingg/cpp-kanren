@@ -96,9 +96,12 @@ value walk_star(value val, substitution sub) {
 
   if (holds_alternative<atom>(walked_value)) {
     auto walked_value_atom = get<atom>(walked_value);
-    if (walked_value_atom->tag == atomValue::VAR) {
-      return val;
-    }
+
+    // debug print
+    std::cout << "walk_star(): walked_value_atom->data: "
+              << walked_value_atom->data << std::endl;
+    // end debug
+    return walked_value;
   }
 
   vector<atom> resList;
@@ -466,16 +469,31 @@ substitution reify_s(value val, substitution sub) {
 }
 
 auto reify(value val) {
-  [val](substitution sub) -> value {
+  auto lambda = [val](substitution sub) -> value {
     value walkedVal = walk_star(val, sub);
+
+    // debug print
+    if (holds_alternative<atom>(walkedVal)) {
+      auto walked_value_atom = get<atom>(walkedVal);
+      std::cout << "reify() walked_value_atom->data: "
+                << walked_value_atom->data << std::endl;
+    }
+    // end debug
+
     substitution reifiedSub = reify_s(walkedVal, empty_s);
     return walk_star(walkedVal, reifiedSub);
   };
+
+  return lambda;
 }
 
-auto run_goal(int n, goal_stream goal) {
+Stream<stream_elem> run_goal(int n, goal_stream goal) {
   Stream<stream_elem> streamRes = goal(empty_s);
-  return take_inf(n, streamRes);
+  auto resStream = take_inf(n, streamRes);
+
+  while (resStream.next()) {
+    co_yield resStream.getValue();
+  }
 }
 
 Stream<stream_elem> ifte_helper(substitution sub) {
