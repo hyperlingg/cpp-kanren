@@ -39,6 +39,8 @@ BOOST_AUTO_TEST_CASE(unequal_var_same_name) { BOOST_CHECK(x != x2); }
 
 BOOST_AUTO_TEST_SUITE_END()
 
+//###########################
+
 BOOST_AUTO_TEST_SUITE(string_representations)
 
 BOOST_AUTO_TEST_CASE(variable_string) {
@@ -58,6 +60,8 @@ BOOST_AUTO_TEST_CASE(value_list_string) {
 
 BOOST_AUTO_TEST_SUITE_END()
 
+//###########################
+
 BOOST_AUTO_TEST_SUITE(assv_function_test)
 
 BOOST_AUTO_TEST_CASE(assv_has_value_x) {
@@ -76,6 +80,8 @@ BOOST_AUTO_TEST_CASE(assv_no_value) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+//###########################
 
 BOOST_AUTO_TEST_SUITE(walk_function_test)
 
@@ -135,6 +141,8 @@ BOOST_AUTO_TEST_CASE(walk_w_frame17) {
 
 BOOST_AUTO_TEST_SUITE_END()
 
+//###########################
+
 BOOST_AUTO_TEST_SUITE(occurs_function_test)
 
 BOOST_AUTO_TEST_CASE(occurs_true_basic) { BOOST_CHECK(occurs(x, x, {})); }
@@ -147,6 +155,8 @@ BOOST_AUTO_TEST_CASE(occurs_true_recurse) {
 BOOST_AUTO_TEST_CASE(occurs_false) { BOOST_CHECK(!occurs(z, a, sub3)); }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+//###########################
 
 BOOST_AUTO_TEST_SUITE(ext_s_function_test)
 
@@ -162,35 +172,162 @@ BOOST_AUTO_TEST_CASE(ext_s_nempty) {
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE(unification) // TODO
+//###########################
 
-// BOOST_AUTO_TEST_CASE(eqv_consts_empty_s) {
-//   auto goal = eqv(makeConst("a"), makeConst("b"));
-//   auto resStream = goal(empty_s);  // this is a singleton stream
-//   substitution singleton = resStream.getValue().value;
+BOOST_AUTO_TEST_SUITE(unification_eqv_disj)
 
-//   // should be the same as singleton
-//   auto uRes = u_goal(empty_s)().getValue().value;
+BOOST_AUTO_TEST_CASE(eqv_consts_empty_s) {
+  auto goal = eqv(makeConst("a"), makeConst("b"));
+  auto resStream = goal(empty_s);  // this is a singleton stream
+  resStream.next();                // NOTE this is important...
 
-//   BOOST_CHECK((empty_s == singleton) && (uRes == singleton));
-// }
+  substitution singleton = resStream.getValue().value;
 
-// BOOST_AUTO_TEST_CASE(eqv_vars_empty_s) {
-//   auto goal = eqv(x, y);
-//   auto resStream = goal(empty_s);
+  // u_goal should be the same as singleton
+  auto uRes = u_goal()(empty_s).getValue().value;
 
-//   substitution singleton = {{x, y}};
+  BOOST_CHECK((empty_s == singleton) && (uRes == empty_s));
+}
 
-//   auto resSubSize = resStream.getValue().value.size();
-//   BOOST_CHECK(resSubSize == 1);  // why does this fail? size is 0... TODO
-// }
+// frame 10.51
+BOOST_AUTO_TEST_CASE(eqv_vars_empty_s) {
+  auto goal = eqv(x, y);
+  auto resStream = goal(empty_s);
+  resStream.next();  // NOTE this is important...
+  substitution singleton = {{x, y}};
 
-// BOOST_AUTO_TEST_CASE(disj_eqv) {
-//   auto goal = disj(eqv(makeConst("olive"), y), eqv(makeConst("oil"), y)); // frame 53
-//   auto resStream = goal(empty_s);
+  auto resSubTag = resStream.getValue().tag;
+  auto resSubValue = resStream.getValue().value;
+  std::cout << "size: " << resSubValue.size() << std::endl;
 
-//   auto resSubSize = resStream.getValue().value.size();
-//   BOOST_CHECK(resSubSize == 2);  // why does this fail? size is 0... TODO
-// }
+  auto sndValueAtom = get<atom>(resSubValue.front().second);
+
+  BOOST_CHECK((resSubTag == 1) && (resSubValue.size() == 1) &&
+              (resSubValue.front().first == x) &&
+              (sndValueAtom->tag == atomValue::VAR) && sndValueAtom == y);
+}
+
+// frame 10.53
+BOOST_AUTO_TEST_CASE(disj_eqv) {
+  auto oilConst = makeConst("oil");
+  auto oliveConst = makeConst("olive");
+
+  auto goal = disj(eqv(oliveConst, y), eqv(oilConst, y));
+  auto resStream = goal(empty_s);
+  resStream.next();  // NOTE this is important...
+
+  auto resSubSize = resStream.getValue().value.size();
+  atom resSubFstFst = resStream.getValue().value.front().first;
+  constant resSubFstSnd =
+      get<constant>(resStream.getValue().value.front().second);
+
+  resStream.next();  // NOTE this is important...
+  atom resSubSndFst = resStream.getValue().value.front().first;
+
+  // and now checking if the "oil" occurs as well...hm, the "olive" does! maybe
+  // its just reverse ordered -> yeah that's it.
+  constant sndSubSndSnd =
+      get<constant>(resStream.getValue().value.front().second);
+
+  BOOST_CHECK(resSubSize == 1 && resSubFstFst == y && resSubSndFst == y &&
+              sndSubSndSnd == oliveConst && resSubFstSnd == oilConst);
+}
+
+// frame 10.63
+BOOST_AUTO_TEST_CASE(disj_neverO) {
+  auto oliveConst = makeConst("olive");
+
+  auto goal = disj(eqv(oliveConst, x), never_o_goal());
+  auto resStream = goal(empty_s);
+  resStream.next();  // NOTE this is important...
+
+  atom resSubFstFst = resStream.getValue().value.front().first;
+  constant resSubFstSnd =
+      get<constant>(resStream.getValue().value.front().second);
+
+  BOOST_CHECK(resSubFstFst == x && resSubFstSnd == oliveConst);
+}
+
+// frames 10.64 and 10.66
+BOOST_AUTO_TEST_CASE(disj_neverO_switched) {
+  auto oliveConst = makeConst("olive");
+
+  auto goal = disj(never_o_goal(), eqv(oliveConst, x));
+  auto resStream = goal(empty_s);
+  resStream.next();  // getting the first stream element (a suspension)
+  auto resSubFstTag = resStream.getValue().tag;
+  resStream.next();  // forcing the "suspension"
+  atom resSubSndFst = resStream.getValue().value.front().first;
+  constant resSubSndSnd =
+      get<constant>(resStream.getValue().value.front().second);
+
+  BOOST_CHECK(resSubFstTag == stream_elem::SUSPEND && resSubSndFst == x &&
+              resSubSndSnd == oliveConst);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+//###########################
+
+BOOST_AUTO_TEST_SUITE(take_inf_alwaysO)
+
+// frame 10.77
+BOOST_AUTO_TEST_CASE(take_3) {
+  Stream<stream_elem> takeStream = always_o()(empty_s);
+  auto take_3_res = take_inf(3, takeStream);
+
+  // while (take_3_res.next()) {
+  //   auto fstSubEmpty = take_3_res.getValue().value.empty();
+  //   auto tag = take_3_res.getValue().tag;
+  //   std::cout << "take_3 empty? " << fstSubEmpty
+  //             << " tag?: " << tag << std::endl;
+  // }
+
+  take_3_res.next();  // -> true
+  auto fstSubEmpty = take_3_res.getValue().value.empty();
+
+  take_3_res.next();  // -> true
+  auto sndSubEmpty = take_3_res.getValue().value.empty();
+
+  take_3_res.next();  // -> true
+  auto thrdSubEmpty = take_3_res.getValue().value.empty();
+
+  // // check that all three substitutions are empty and that there is no 4th
+  // one
+  BOOST_CHECK(fstSubEmpty && sndSubEmpty && thrdSubEmpty && !take_3_res.next());
+}
+
+// frame 10.79
+BOOST_AUTO_TEST_CASE(found2not5) {
+  auto oilConst = makeConst("oil");
+  auto oliveConst = makeConst("olive");
+
+  auto goal = disj(eqv(oliveConst, y), eqv(oilConst, y));
+  auto resStream = goal(empty_s);
+
+  auto take_5_stream = take_inf(5, resStream);
+
+  int streamLength;
+  while (take_5_stream.next()) {
+    streamLength++;
+    // std::cout << "data found2not5 fst"
+    //           << take_5_stream.getValue().value.front().first->data
+    //           << std::endl;
+
+    // // snd elem of the front of substitution
+    // auto snd = take_5_stream.getValue().value.front().second;
+    // if (holds_alternative<atom>(snd)) {
+    //   auto atm = get<atom>(snd);
+    //   std::cout << "atm->data " << atm->data << std::endl;
+    // }
+
+    // // size of substitution
+    // std::cout << "size :" << take_5_stream.getValue().value.size() << std::endl;
+  }
+
+  // std::cout << "streamlength: " << streamLength << std::endl;
+  BOOST_CHECK(streamLength == 2);  // yeah this stream really has 4 (or 5?) elements instead
+                      // of 2...why?
+}
 
 BOOST_AUTO_TEST_SUITE_END()
