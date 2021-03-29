@@ -33,7 +33,27 @@ using association = pair<atom, value>;
 // property
 using substitution = vector<association>;
 
+value car(value_list val) { return val.front(); }
 
+value_list cdr(value_list val) {
+  if (!val.empty()) {
+    val.erase(val.begin());
+    return val;
+  } else {
+    return {};
+  }
+}
+
+value_list cons(atom head, value tail) {
+  if (holds_alternative<value_list>(tail)) {
+    auto valList = get<value_list>(tail);
+    valList.insert(valList.begin(), head);
+    return valList;
+  } else {
+    auto valAtom = get<atom>(tail);
+    return {head, valAtom};
+  }
+}
 
 // NOTE ok, this seems to work as an arbitrary-depth list implementation
 struct List {
@@ -41,9 +61,10 @@ struct List {
   unique_ptr<List> tail;
 };
 
-atomValue val2 = {atomValue::VAR,"a"};
+atomValue val2 = {atomValue::VAR, "a"};
 atom val1 = make_shared<atomValue>(val2);
 
 List testList = {val1, make_unique<List>(val1, nullptr)};
 
-List testList2 = {make_unique<List>(val1, make_unique<List>(val1,nullptr)),make_unique<List>(val1, nullptr) };
+List testList2 = {make_unique<List>(val1, make_unique<List>(val1, nullptr)),
+                  make_unique<List>(val1, nullptr)};

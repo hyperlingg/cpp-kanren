@@ -349,4 +349,33 @@ BOOST_AUTO_TEST_CASE(reifyOliveOil) {
   BOOST_CHECK(atomList.at(0) == oilConst && atomList.at(1) == oliveConst);
 }
 
+// 10.113
+BOOST_AUTO_TEST_CASE(reify_list_of_subs) {
+  auto oilConst = makeConst("oil");
+  auto oliveConst = makeConst("olive");
+
+  auto result = reify(x)(sub2);
+
+  auto stringRes = getStringValue(result);
+  if (stringRes.has_value()) {
+    std::cout << "reify_list_of_subs 1 " << stringRes.value() << std::endl;
+  }
+
+  result = reify(x)(sub4);
+  stringRes = getStringValue(result);
+  if (stringRes.has_value()) {
+    std::cout << "reify_list_of_subs 2 " << stringRes.value() << std::endl;
+  }
+  // TODO BOOST_CHECK
+}
+
+goal car_o(value_list p, atom a) {
+  auto goal_abs = [a, p](variable d) -> goal_stream {
+    return eqv(cons(a, d), p);
+  };
+  return call_fresh("x", goal_abs);
+}
+
+BOOST_AUTO_TEST_CASE(car_o_test) {}
+
 BOOST_AUTO_TEST_SUITE_END()

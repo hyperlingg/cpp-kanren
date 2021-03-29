@@ -104,16 +104,15 @@ value walk_star(value val, substitution sub) {
     return walked_value;
   }
 
-  vector<atom> resList;
+  value_list resList;
   if (holds_alternative<vector<atom>>(walked_value)) {
     auto walked_value_pair = get<vector<atom>>(walked_value);
 
     for (auto elem : walked_value_pair) {
-      value res = walk_star(
-          elem, sub);  // TODO verify that this recursive call is sound
+      value res = walk_star(elem, sub);
 
-      // test if value is atom to satisfy return type (NOTE: this is a
-      // workaround since list of list is not supported yet)
+      // TODO this test is a workaround that restricts the functionality of the
+      // language! walk_star should also be able to append non-atomic values
       if (holds_alternative<atom>(res)) {
         resList.push_back(get<atom>(res));
       }
@@ -420,12 +419,6 @@ Stream<stream_elem> always_o_helper(substitution sub) noexcept {
   while (true) {
     co_yield emptySub;
   }
-  // goal_stream res = disj(s_goal(),
-  //                        s_goal());  // TODO inspect this
-  // Stream<stream_elem> goalEval = res(sub);
-  // while (goalEval.next()) {
-  //   co_yield goalEval.getValue();
-  // }
 }
 
 goal_stream always_o() { return always_o_helper; }
