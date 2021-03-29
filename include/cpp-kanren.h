@@ -232,6 +232,7 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
   while (s.next()) {
     if (s.getValue().tag ==
         stream_elem::SUSPEND) {  // if suspension -> swap streams
+      co_yield s.getValue();     // TODO test this line...
       std::swap(t, s);
     } else {
       co_yield s.getValue();
@@ -242,24 +243,6 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
     co_yield t.getValue();
   }
 }
-
-// Stream<stream_elem> append_map(goal_stream g, Stream<stream_elem>& s)
-// noexcept {
-//   while (s.next()) {
-//     if (s.getValue().tag == stream_elem::VALUE) {
-//       substitution sub = s.getValue().value;
-//       Stream<stream_elem> mapStream = g(sub);
-//       while (mapStream.next()) {
-//         if (mapStream.getValue().tag == stream_elem::SUSPEND) {
-//           streamQueue.emplace(mapStream.getValue());  // TODO work on this
-//         } else {
-//           // s = append_inf(mapStream,s);
-//           co_yield mapStream.getValue();
-//         }
-//       }
-//     }
-//   }
-// }
 
 // NOTE resStream is an empty stream initially (or maybe a suspension?)
 Stream<stream_elem> append_map_helper(goal_stream g, Stream<stream_elem>& s,
@@ -355,11 +338,14 @@ goal_stream disj(goal_stream g1, goal_stream g2) noexcept {
 
 Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) noexcept {
   for (int i = 0; i < n; i++) {
-    s.next();
-    if (s.getValue().tag == stream_elem::VALUE) {
-      co_yield s.getValue();
+    if (s.next()) {
+      if (s.getValue().tag == stream_elem::VALUE) {
+        co_yield s.getValue();
+      } else {
+        i--;  // suspension does not carry a value and we want n values
+      }
     } else {
-      i--;  // suspension does not carry a value and we want n values
+      break;
     }
   }
 }
@@ -396,7 +382,8 @@ goal_stream eqv(value u, value v) {
   return eqv_helper;
 }
 
-// Stream<stream_elem> eqv_streamify(stream_elem str) noexcept { co_yield str; }
+// Stream<stream_elem> eqv_streamify(stream_elem str) noexcept { co_yield str;
+// }
 
 Stream<stream_elem> s_goal_helper(substitution sub) noexcept {
   stream_elem res = {stream_elem::VALUE, sub};
@@ -416,6 +403,7 @@ Stream<stream_elem> u_goal_helper(substitution sub) noexcept {
 goal_stream u_goal() { return u_goal_helper; }
 
 Stream<stream_elem> never_o_goal_helper(substitution sub) noexcept {
+  // irregardless of the substitution it produces a suspension
   stream_elem sus = {stream_elem::SUSPEND, {}};
   while (true) {
     co_yield sus;
@@ -425,14 +413,16 @@ Stream<stream_elem> never_o_goal_helper(substitution sub) noexcept {
 goal_stream never_o_goal() { return never_o_goal_helper; }
 
 Stream<stream_elem> always_o_helper(substitution sub) noexcept {
-  stream_elem sus = {stream_elem::SUSPEND, {}};
-  co_yield sus;
-  goal_stream res = disj(s_goal(),
-                         s_goal());  // TODO inspect this
-  Stream<stream_elem> goalEval = res(sub);
-  while (goalEval.next()) {
-    co_yield goalEval.getValue();
+  stream_elem emptySub = {stream_elem::VALUE, empty_s};
+  while (true) {
+    co_yield emptySub;
   }
+  // goal_stream res = disj(s_goal(),
+  //                        s_goal());  // TODO inspect this
+  // Stream<stream_elem> goalEval = res(sub);
+  // while (goalEval.next()) {
+  //   co_yield goalEval.getValue();
+  // }
 }
 
 goal_stream always_o() { return always_o_helper; }
@@ -505,10 +495,7 @@ Stream<stream_elem> ifte_helper(substitution sub) {
       return res;
     }
 
-    if (fstSub.tag == stream_elem::SUSPEND) {  // case (suspension? sub_inf)
-      sub_inf.next();  // is this even necessary? seems like a double next TODO
-                       // see once_helper
-    }
+    // case 'suspension' is implicit (forced)
   }
 
   return g3(sub);  // case (null? sub_inf)
