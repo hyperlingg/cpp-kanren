@@ -310,24 +310,9 @@ BOOST_AUTO_TEST_CASE(found2not5) {
   int streamLength;
   while (take_5_stream.next()) {
     streamLength++;
-    // std::cout << "data found2not5 fst"
-    //           << take_5_stream.getValue().value.front().first->data
-    //           << std::endl;
-
-    // // snd elem of the front of substitution
-    // auto snd = take_5_stream.getValue().value.front().second;
-    // if (holds_alternative<atom>(snd)) {
-    //   auto atm = get<atom>(snd);
-    //   std::cout << "atm->data " << atm->data << std::endl;
-    // }
-
-    // // size of substitution
-    // std::cout << "size :" << take_5_stream.getValue().value.size() << std::endl;
   }
 
-  // std::cout << "streamlength: " << streamLength << std::endl;
-  BOOST_CHECK(streamLength == 2);  // yeah this stream really has 4 (or 5?) elements instead
-                      // of 2...why?
+  BOOST_CHECK(streamLength == 2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
