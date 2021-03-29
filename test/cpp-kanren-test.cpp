@@ -3,6 +3,7 @@
 
 #include <boost/test/tools/output_test_stream.hpp>
 #include <boost/test/unit_test.hpp>
+
 variable x = makeVar("x");
 variable y = makeVar("y");
 variable z = makeVar("z");
@@ -313,6 +314,39 @@ BOOST_AUTO_TEST_CASE(found2not5) {
   }
 
   BOOST_CHECK(streamLength == 2);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+//###########################
+
+BOOST_AUTO_TEST_SUITE(reification)
+
+// 10.114
+BOOST_AUTO_TEST_CASE(reifyOliveOil) {
+  auto oilConst = makeConst("oil");
+  auto oliveConst = makeConst("olive");
+
+  auto goal = disj(eqv(oliveConst, y), eqv(oilConst, y));
+
+  auto runGoal = run_goal(5, goal);
+  auto reifyLambda = reify(y);
+
+  vector<value> valueList;
+  while (runGoal.next()) {
+    valueList.push_back(reifyLambda(runGoal.getValue().value));
+  }
+  std::cout << "valueList.size()" << valueList.size() << std::endl;
+
+  vector<atom> atomList;
+  for (auto elem : valueList) {
+    if (holds_alternative<atom>(elem)) {
+      auto elemAtom = get<atom>(elem);
+      atomList.push_back(elemAtom);
+      std::cout << "elemAtom->data: " << elemAtom->data << std::endl;
+    }
+  }
+  BOOST_CHECK(atomList.at(0) == oilConst && atomList.at(1) == oliveConst);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
