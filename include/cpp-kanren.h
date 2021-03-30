@@ -16,10 +16,10 @@ Author : Jonas Lingg (2021)
 using namespace std;
 
 // if this works: make it a class member
-queue<goal_stream> goalStreamQueue;
+queue<goal> goalStreamQueue;
 queue<value> eqvValueQueue;
-queue<goal_stream> ifteQueue;
-queue<goal_stream> onceQueue;
+queue<goal> ifteQueue;
+queue<goal> onceQueue;
 
 #define empty_s ((substitution){})
 #define empty_stream \
@@ -102,6 +102,8 @@ value walk_star(value val, substitution sub) {
               << walked_value_atom->data << std::endl;
     // end debug
     return walked_value;
+  } else {
+    std::cout << "walk_star non-atom!" << std::endl;
   }
 
   value_list resList;
@@ -115,6 +117,8 @@ value walk_star(value val, substitution sub) {
       // language! walk_star should also be able to append non-atomic values
       if (holds_alternative<atom>(res)) {
         resList.push_back(get<atom>(res));
+      } else {
+        std::cout << "walk_star non-atom!" << std::endl;
       }
       // end workaround
     }
@@ -122,7 +126,7 @@ value walk_star(value val, substitution sub) {
     return resList;
   }
 
-  return val;  // TODO verify this return type
+  return walked_value;  // TODO verify this return type
 }
 
 bool occurs(atom var, value val, substitution sub) {
@@ -176,17 +180,17 @@ optional<substitution> ext_s(atom var, value val, substitution sub) {
 }
 
 optional<substitution> unify(value u, value v, substitution sub) {
-  auto uWalk = walk(u, sub);
-  auto vWalk = walk(v, sub);
+  u = walk(u, sub);
+  v = walk(v, sub);
   std::cout << "enter unify" << std::endl;
-  if (uWalk == vWalk) {
+  if (u == v) {
     std::cout << "uWalk == vWalk" << std::endl;
     return sub;
   }
 
-  if (holds_alternative<atom>(uWalk)) {
+  if (holds_alternative<atom>(u)) {
     std::cout << "holds_alternative<atom>(uWalk)" << std::endl;
-    auto uAtom = get<atom>(uWalk);
+    auto uAtom = get<atom>(u);
     if (uAtom->tag == atomValue::VAR) {
       std::cout << "uAtom->tag == atomValue::VAR" << std::endl;
       auto ext_sOpt = ext_s(uAtom, v, sub);
@@ -197,45 +201,51 @@ optional<substitution> unify(value u, value v, substitution sub) {
     }
   }
 
-  if (holds_alternative<atom>(vWalk)) {
+  if (holds_alternative<atom>(v)) {
     std::cout << "holds_alternative<atom>(vWalk)" << std::endl;
-    auto vAtom = get<atom>(vWalk);
+    auto vAtom = get<atom>(v);
     if (vAtom->tag == atomValue::VAR) {
       std::cout << "vAtom->tag == atomValue::VAR" << std::endl;
       return ext_s(vAtom, u, sub);
     }
   }
 
-  if (holds_alternative<value_list>(uWalk) &&
-      holds_alternative<value_list>(vWalk)) {
-    auto vList = get<value_list>(vWalk);
-    auto uList = get<value_list>(uWalk);
+  if (holds_alternative<value_list>(u) && holds_alternative<value_list>(v)) {
+    std::cout << "holds_alternative<value_list>(xy)" << std::endl;
+    auto vList = get<value_list>(v);
+    auto uList = get<value_list>(u);
 
+    // TODO there is a bug in this for loop...
     for (auto elem : vList) {
       if (!uList.empty()) {
         auto sUnify = unify(uList.front(), elem, sub);
         if (!sUnify.has_value()) {  // 'and' condition
-          break;
+          std::cout << "sUnify no value" << std::endl;
+          return {};
+        } else {
+          std::cout << "sub set new" << std::endl;
+          sub = sUnify.value();
         }
+
+        uList.erase(uList.begin());  // pop the first element
+
       } else {
+        std::cout << "before return {} 1" << std::endl;
         return {};  // last cond line (else #f)
       }
-
-      uList.erase(uList.begin());  // pop the first element
     }
   }
 
-  std::cout << "before return {}" << std::endl;
+  std::cout << "before return {} 2" << std::endl;
   return {};
 }
 
 Stream<stream_elem> append_inf(Stream<stream_elem>& s,
                                Stream<stream_elem>& t) noexcept {
   while (s.next()) {
-    if (s.getValue().tag ==
-        stream_elem::SUSPEND) {  // if suspension -> swap streams
-      co_yield s.getValue();     // TODO test this line...
-      std::swap(t, s);
+    if (s.getValue().tag == stream_elem::SUSPEND) {
+      co_yield s.getValue();
+      std::swap(t, s);  // if suspension -> swap streams
     } else {
       co_yield s.getValue();
     }
@@ -247,7 +257,7 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
 }
 
 // NOTE resStream is an empty stream initially (or maybe a suspension?)
-Stream<stream_elem> append_map_helper(goal_stream g, Stream<stream_elem>& s,
+Stream<stream_elem> append_map_helper(goal g, Stream<stream_elem>& s,
                                       Stream<stream_elem>& resStream) noexcept {
   while (s.next()) {
     if (s.getValue().tag == stream_elem::VALUE) {
@@ -262,7 +272,7 @@ Stream<stream_elem> append_map_helper(goal_stream g, Stream<stream_elem>& s,
   }
 }
 
-Stream<stream_elem> append_map(goal_stream g, Stream<stream_elem>& s) noexcept {
+Stream<stream_elem> append_map(goal g, Stream<stream_elem>& s) noexcept {
   Stream<stream_elem> resStream =
       append_map_helper(g, s, s);  // TODO empty stream
   while (resStream.next()) {
@@ -272,7 +282,7 @@ Stream<stream_elem> append_map(goal_stream g, Stream<stream_elem>& s) noexcept {
 
 Stream<stream_elem> conj_helper(substitution sub) noexcept {
   // pop g1 and g2 from the argument stack:
-  goal_stream g1, g2;
+  goal g1, g2;
   if (!goalStreamQueue.empty()) {
     g1 = goalStreamQueue.front();
     goalStreamQueue.pop();
@@ -293,7 +303,7 @@ Stream<stream_elem> conj_helper(substitution sub) noexcept {
   }
 }
 
-goal_stream conj(goal_stream g1, goal_stream g2) noexcept {
+goal conj(goal g1, goal g2) noexcept {
   // push g1 and g2 to an argument queue, then return function pointer
   // TODO decide on order of push operation (it's g2 first atm)
   goalStreamQueue.emplace(g2);
@@ -307,7 +317,7 @@ goal_stream conj(goal_stream g1, goal_stream g2) noexcept {
 // with an ID
 Stream<stream_elem> disj_helper(substitution sub) noexcept {
   // pop g1 and g2 from the argument stack:
-  goal_stream g1, g2;
+  goal g1, g2;
   if (!goalStreamQueue.empty()) {
     g1 = goalStreamQueue.front();
     goalStreamQueue.pop();
@@ -331,7 +341,7 @@ Stream<stream_elem> disj_helper(substitution sub) noexcept {
 }
 
 // TODO convert goal_stream to goal by distinguishing variants
-goal_stream disj(goal_stream g1, goal_stream g2) noexcept {
+goal disj(goal g1, goal g2) noexcept {
   // push g1 and g2 to an argument queue, then return function pointer
   goalStreamQueue.emplace(g1);
   goalStreamQueue.emplace(g2);
@@ -377,7 +387,7 @@ Stream<stream_elem> eqv_helper(substitution sub) {
   co_yield res;
 }
 
-goal_stream eqv(value u, value v) {
+goal eqv(value u, value v) {
   eqvValueQueue.emplace(u);
   eqvValueQueue.emplace(v);
 
@@ -392,7 +402,7 @@ Stream<stream_elem> s_goal_helper(substitution sub) noexcept {
   co_yield res;
 }
 
-goal_stream s_goal() {
+goal s_goal() {
   // return function pointer instead of lambda
   return s_goal_helper;
 }
@@ -402,7 +412,7 @@ Stream<stream_elem> u_goal_helper(substitution sub) noexcept {
   co_yield res;
 }
 
-goal_stream u_goal() { return u_goal_helper; }
+goal u_goal() { return u_goal_helper; }
 
 Stream<stream_elem> never_o_goal_helper(substitution sub) noexcept {
   // irregardless of the substitution it produces a suspension
@@ -412,7 +422,7 @@ Stream<stream_elem> never_o_goal_helper(substitution sub) noexcept {
   }
 }
 
-goal_stream never_o_goal() { return never_o_goal_helper; }
+goal never_o_goal() { return never_o_goal_helper; }
 
 Stream<stream_elem> always_o_helper(substitution sub) noexcept {
   stream_elem emptySub = {stream_elem::VALUE, empty_s};
@@ -421,7 +431,7 @@ Stream<stream_elem> always_o_helper(substitution sub) noexcept {
   }
 }
 
-goal_stream always_o() { return always_o_helper; }
+goal always_o() { return always_o_helper; }
 
 goal call_fresh(std::string name, goal_abstraction funcGoal) {
   auto var = makeVar(name);
@@ -480,7 +490,7 @@ auto reify(value val) {
   return lambda;
 }
 
-Stream<stream_elem> run_goal(int n, goal_stream goal) {
+Stream<stream_elem> run_goal(int n, goal goal) {
   Stream<stream_elem> streamRes = goal(empty_s);
   auto resStream = take_inf(n, streamRes);
 
@@ -490,11 +500,11 @@ Stream<stream_elem> run_goal(int n, goal_stream goal) {
 }
 
 Stream<stream_elem> ifte_helper(substitution sub) {
-  goal_stream g1 = ifteQueue.front();
+  goal g1 = ifteQueue.front();
   ifteQueue.pop();
-  goal_stream g2 = ifteQueue.front();
+  goal g2 = ifteQueue.front();
   ifteQueue.pop();
-  goal_stream g3 = ifteQueue.front();
+  goal g3 = ifteQueue.front();
   ifteQueue.pop();
   Stream<stream_elem> sub_inf = g1(sub);
 
@@ -512,7 +522,7 @@ Stream<stream_elem> ifte_helper(substitution sub) {
   return g3(sub);  // case (null? sub_inf)
 }
 
-goal_stream ifte(goal_stream g1, goal_stream g2, goal_stream g3) {
+goal ifte(goal g1, goal g2, goal g3) {
   ifteQueue.emplace(g1);
   ifteQueue.emplace(g2);
   ifteQueue.emplace(g3);
@@ -521,7 +531,7 @@ goal_stream ifte(goal_stream g1, goal_stream g2, goal_stream g3) {
 }
 
 Stream<stream_elem> once_helper(substitution sub) {
-  goal_stream g1 = onceQueue.front();
+  goal g1 = onceQueue.front();
   onceQueue.pop();
   Stream<stream_elem> onceStream = g1(sub);
 
@@ -537,7 +547,7 @@ Stream<stream_elem> once_helper(substitution sub) {
   co_yield empty_stream;
 }
 
-goal_stream once(goal_stream g1) {
+goal once(goal g1) {
   onceQueue.emplace(g1);
   return once_helper;
 }
