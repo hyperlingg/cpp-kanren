@@ -17,8 +17,8 @@ value_list ls = {x, y, a};
 value_list ls2 = {x, makeConst("e"), z};
 value_list ls3 = {makeConst("grape"), a, z};
 
-value_list cdr1 = {makeConst("e"), makeConst("c"), makeConst("e")};
-value_list cdr2 = {x, makeConst("e")};
+value_list cdr1 = {a, a, a};
+value_list cdr2 = {a, a};
 
 association assoc1 = {x, y};
 association assoc2 = {y, z};
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(eqv_consts_empty_s) {
 
   substitution singleton = resStream.getValue().value;
 
-  // u_goal should be the same as singleton
+  // u_goal should be the same as singleton 
   auto uRes = u_goal()(empty_s).getValue().value;
 
   BOOST_CHECK((empty_s == singleton) && (uRes == empty_s));
@@ -388,7 +388,7 @@ BOOST_AUTO_TEST_CASE(reify_list_of_subs) {
     std::cout << "reify_list_of_subs 2 " << stringRes.value()
               << std::endl;  // -> b
   }
-  // TODO BOOST_CHECK
+  // TODO check missing (but it works)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -657,105 +657,62 @@ BOOST_AUTO_TEST_CASE(playthings7) {
   auto gl = [q, emptyLs](variable a) -> goal {
     return eqv(cons(a, emptyLs), q);  // cons(a, emptyLs)
   };
-  auto gl2 = eqv(cons(x, emptyLs), q);
-  // generate a fresh var "x" (not functionally necessary but can be useful if
-  // there is a need for multiple fresh vars)
+  // auto gl2 = eqv(cons(x, emptyLs), q);
+  // generate a fresh var "x" (not really necessary here)
   goal glFreshX = call_fresh("x", gl);
 
   // run the goal and reify after q
   vector<value> results = run(10, q, glFreshX);
 
-  std::cout << "playthings7 results: ";
   for (auto elem : results) {
     if (holds_alternative<atom>(elem)) {
       auto elemAtom = get<atom>(elem);
-      std::cout << elemAtom->data << " ";
     }
 
     if (holds_alternative<value_list>(elem)) {
       auto valList = get<value_list>(elem);
       auto resOpt = getStringValue(valList);
       if (resOpt.has_value()) {
-        BOOST_CHECK(resOpt.value() == "( _0 )"); // value associated to q
+        BOOST_CHECK(resOpt.value() == "( _0 )");  // value associated to q is correct
       }
     }
   }
-  std::cout << std::endl;
 }
-
-// etc. ... .
-// and maybe the applications from chapter 2 are also working if i catch the
-// map to empty?
 
 BOOST_AUTO_TEST_SUITE_END()
 
+
+
+
+// ... and now to the parts that don't work
 //###########################
 
-// from chapter 2...there appears to be a bug somewhere...the results are odd.
+// from chapter 2...there appears to be a bug somewhere in the unification... .
 BOOST_AUTO_TEST_SUITE(caro_cdro)
 
-BOOST_AUTO_TEST_CASE(car_o_test) {
-  auto goalAbs = [&](variable x) -> goal { return car_o(ls3, x); };
-  auto goalFreshCalled = call_fresh("x", goalAbs);
-  auto ranGoal = run_goal(10, goalAbs(x));
-  auto reifyLambda = reify(x);
-
-  // auto complete = run_goal(10,
-  //                  call_fresh("var",
-  //                   [&](variable var) -> goal {
-  //                    return car_o(ls3, var); }));
-
-  vector<value> valueList;
-  while (ranGoal.next()) {
-    valueList.push_back(reifyLambda(ranGoal.getValue().value));
-  }
-
-  std::cout << "car_o_test: valueList.size()" << valueList.size() << std::endl;
-
-  vector<atom> atomList;
-  for (auto elem : valueList) {
-    if (holds_alternative<atom>(elem)) {
-      auto elemAtom = get<atom>(elem);
-      atomList.push_back(elemAtom);
-      std::cout << "car_o_test: elemAtom->data: " << elemAtom->data
-                << std::endl;
-    } else {
-      std::cout << "i have non-atomic data" << std::endl;
-    }
-  }
-}
-
 BOOST_AUTO_TEST_CASE(cdr_o_test) {
-  std::cout << "BEGIN cdr_o_test()" << std::endl;
-  auto goalAbs = [&](value_list lss1, value_list lss2) -> goal {
-    return cdr_o(lss1, lss2);
+  // cdr_o goal (frame 2:26)
+  auto cdr_o = [&](value_list p, value_list d) -> goal {
+    return eqv(cons(x, d), p);
   };
 
-  auto ranGoal = run_goal(10, goalAbs(cdr1, cdr2));
-  auto reifyLambda = reify(x);
+  auto results = run(10, x, cdr_o(cdr1, cdr2));
 
-  // auto complete = run_goal(10,
-  //                  call_fresh("var",
-  //                   [&](variable var) -> goal {
-  //                    return car_o(ls3, var); }));
-
-  vector<value> valueList;
-  while (ranGoal.next()) {
-    std::cout << "fst_data" << ranGoal.getValue().value.empty() << std::endl;
-    valueList.push_back(reifyLambda(ranGoal.getValue().value));
-  }
-
-  std::cout << "cdr_o_test: valueList.size()" << valueList.size() << std::endl;
-
-  vector<atom> atomList;
-  for (auto elem : valueList) {
+  std::cout << "cdr_o_test empty: " << results.empty()
+            << std::endl;  // -> no value yet (unification problem)
+  for (auto elem : results) {
     if (holds_alternative<atom>(elem)) {
       auto elemAtom = get<atom>(elem);
-      atomList.push_back(elemAtom);
-      std::cout << "cdr_o_test: elemAtom->data: " << elemAtom->data
-                << std::endl;
-    } else {
-      std::cout << "i have non-atomic data" << std::endl;
+      std::cout << "cdr_o_test value: " << elemAtom->data << std::endl;
+    }
+
+    if (holds_alternative<value_list>(elem)) {
+      auto valList = get<value_list>(elem);
+      auto resOpt = getStringValue(valList);
+      if (resOpt.has_value()) {
+        std::cout << "cdr_o_test value: " << resOpt.value() << std::endl;
+        // BOOST_CHECK(resOpt.value() == "( _0 )");  // value associated to q
+      }
     }
   }
 }

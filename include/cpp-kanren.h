@@ -15,7 +15,7 @@ Author : Jonas Lingg (2021)
 
 using namespace std;
 
-// if this works: make it members of some class
+// TODO these queues should be members of a class
 queue<goal> goalStreamQueue;
 queue<value> eqvValueQueue;
 queue<goal> ifteQueue;
@@ -101,6 +101,7 @@ value walk_star(value val, substitution sub) {
     std::cout << "walk_star(): walked_value_atom->data: "
               << walked_value_atom->data << std::endl;
     // end debug
+
     return walked_value;
   } else {
     std::cout << "walk_star non-atom!" << std::endl;
@@ -126,7 +127,7 @@ value walk_star(value val, substitution sub) {
     return resList;
   }
 
-  return walked_value;  // TODO verify this return type
+  return walked_value;
 }
 
 bool occurs(atom var, value val, substitution sub) {
@@ -158,7 +159,6 @@ bool occurs(atom var, value val, substitution sub) {
 }
 
 optional<substitution> ext_s(atom var, value val, substitution sub) {
-  // TODO check var for being a var
   std::cout << "enter ext_s" << std::endl;
   if (occurs(var, val, sub)) {
     std::cout << "ext_s : occurs(var, val, sub)" << std::endl;
@@ -208,7 +208,7 @@ optional<substitution> unify(value u, value v, substitution sub) {
     auto vList = get<value_list>(v);
     auto uList = get<value_list>(u);
 
-    // TODO there is a bug in this for loop...
+    // TODO there could be a bug in this for loop...
     for (auto elem : vList) {
       if (!uList.empty()) {
         auto sUnify = unify(uList.front(), elem, sub);
@@ -249,7 +249,7 @@ Stream<stream_elem> append_inf(Stream<stream_elem>& s,
   }
 }
 
-// NOTE resStream is an empty stream initially (or maybe a suspension?)
+// NOTE resStream should be an empty stream initially
 Stream<stream_elem> append_map_helper(goal g, Stream<stream_elem>& s,
                                       Stream<stream_elem>& resStream) noexcept {
   while (s.next()) {
@@ -283,7 +283,7 @@ Stream<stream_elem> conj_helper(substitution sub) noexcept {
       g2 = goalStreamQueue.front();
       goalStreamQueue.pop();
     } else {
-      terminate();
+      terminate();  // if this happens, sth went really wrong
     }
   } else {
     terminate();
@@ -298,16 +298,12 @@ Stream<stream_elem> conj_helper(substitution sub) noexcept {
 
 goal conj(goal g1, goal g2) noexcept {
   // push g1 and g2 to an argument queue, then return function pointer
-  // TODO decide on order of push operation (it's g2 first atm)
+  // NOTE order of push operation (it's g2 first atm)
   goalStreamQueue.emplace(g2);
   goalStreamQueue.emplace(g1);
   return conj_helper;
 }
 
-// TODO can i ensure that disj_helper gets the right arguments?
-// if this insurance becomes necessary it will get inelegant, e.g.
-// by tagging the function pointer returned by disj as well as the stacked args
-// with an ID
 Stream<stream_elem> disj_helper(substitution sub) noexcept {
   // pop g1 and g2 from the argument stack:
   goal g1, g2;
@@ -333,7 +329,6 @@ Stream<stream_elem> disj_helper(substitution sub) noexcept {
   }
 }
 
-// TODO convert goal_stream to goal by distinguishing variants
 goal disj(goal g1, goal g2) noexcept {
   // push g1 and g2 to an argument queue, then return function pointer
   goalStreamQueue.emplace(g1);
@@ -372,11 +367,20 @@ Stream<stream_elem> eqv_helper(substitution sub) {
   }
 
   auto unifyRes = unify(u, v, sub);
+  std::string uStr, vStr;
+
   if (unifyRes.has_value()) {
     sub = unifyRes.value();
     stream_elem res = {stream_elem::VALUE, sub};
     co_yield res;
   } else {
+    uStr = getStringValue(u).value();
+    vStr = getStringValue(v).value();
+
+    std::cout << "eqv: return empty_stream ";
+    std::cout << "arg u: " << uStr << " ";
+    std::cout << "arg v: " << vStr << std::endl;
+
     stream_elem res = empty_stream;
     co_yield res;
   }
@@ -389,16 +393,14 @@ goal eqv(value u, value v) {
   return eqv_helper;
 }
 
-// Stream<stream_elem> eqv_streamify(stream_elem str) noexcept { co_yield str;
-// }
-
 Stream<stream_elem> s_goal_helper(substitution sub) noexcept {
   stream_elem res = {stream_elem::VALUE, sub};
   co_yield res;
 }
 
 goal s_goal() {
-  // return function pointer instead of lambda
+  // return function pointer instead of lambda (streams are incompatible with
+  // lambda expressions)
   return s_goal_helper;
 }
 
@@ -494,8 +496,9 @@ Stream<stream_elem> run_goal(int n, goal goal) {
   }
 }
 
+// simplified run procedure
+// number of results, variable to be reified after and a goal that should contain this var
 vector<value> run(int n, variable reifyVar, goal goal) {
-  // auto reifyVar = makeVar(varname);
   auto reifyLambda = reify(reifyVar);
   Stream<stream_elem> stream = run_goal(n, goal);
 
@@ -505,8 +508,9 @@ vector<value> run(int n, variable reifyVar, goal goal) {
 
   while (stream.next()) {
     elem = stream.getValue();
-
+    std::cout << "run: stream.next()" << std::endl;
     if ((elem.tag == emptyStream.tag) && (elem.value == emptyStream.value)) {
+      std::cout << "run: return {}" << std::endl;
       return {};
     }
 
