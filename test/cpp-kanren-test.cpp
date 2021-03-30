@@ -611,10 +611,81 @@ BOOST_AUTO_TEST_CASE(playthings5) {
   BOOST_CHECK(elemAtom->data == "_0");
 }
 
-//  TODO frame 1.20
+// frame 1.20
+BOOST_AUTO_TEST_CASE(playthings6) {
+  // auto pea = makeConst("pea");
+  auto q = makeVar("q");
+
+  // GOAL
+  auto stream = run_goal(10, eqv(q, q));
+
+  auto reifyLambda = reify(q);  // reify after some fresh var
+
+  atom elemAtom;
+
+  while (stream.next()) {  // length 1
+    std::cout << "playthings6 emptySub? " << stream.getValue().value.empty()
+              << std::endl;
+
+    stream_elem emptyStream = empty_stream;
+    stream_elem streamElem = stream.getValue();
+    std::cout << "playthings6 emptyStream? "
+              << ((streamElem.tag == emptyStream.tag) &&
+                  (streamElem.value == emptyStream.value))
+              << std::endl;
+
+    auto reifiedStreamElem = reifyLambda(stream.getValue().value);
+
+    if (holds_alternative<atom>(reifiedStreamElem)) {
+      elemAtom = get<atom>(reifiedStreamElem);
+
+      std::cout << "playthings6: elemAtom->data: " << elemAtom->data
+                << std::endl;
+    } else {
+      std::cout << "playthings6: non-atomic " << std::endl;
+    }
+  }
+  BOOST_CHECK(elemAtom->data == "_0");
+}
+
+// frame 1.25
+BOOST_AUTO_TEST_CASE(playthings7) {
+  auto q = makeVar("q");
+  value_list emptyLs = {};
+  // q oocurs in the goal
+
+  auto gl = [q, emptyLs](variable a) -> goal {
+    return eqv(cons(a, emptyLs), q);  // cons(a, emptyLs)
+  };
+  auto gl2 = eqv(cons(x, emptyLs), q);
+  // generate a fresh var "x" (not functionally necessary but can be useful if
+  // there is a need for multiple fresh vars)
+  goal glFreshX = call_fresh("x", gl);
+
+  // run the goal and reify after q
+  vector<value> results = run(10, q, glFreshX);
+
+  std::cout << "playthings7 results: ";
+  for (auto elem : results) {
+    if (holds_alternative<atom>(elem)) {
+      auto elemAtom = get<atom>(elem);
+      std::cout << elemAtom->data << " ";
+    }
+
+    if (holds_alternative<value_list>(elem)) {
+      auto valList = get<value_list>(elem);
+      auto resOpt = getStringValue(valList);
+      if (resOpt.has_value()) {
+        BOOST_CHECK(resOpt.value() == "( _0 )"); // value associated to q
+      }
+    }
+  }
+  std::cout << std::endl;
+}
+
 // etc. ... .
-// and maybe the applications from chapter 2 are also working if i catch the map
-// to empty?
+// and maybe the applications from chapter 2 are also working if i catch the
+// map to empty?
 
 BOOST_AUTO_TEST_SUITE_END()
 
