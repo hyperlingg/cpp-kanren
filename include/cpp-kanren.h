@@ -15,7 +15,7 @@ Author : Jonas Lingg (2021)
 
 using namespace std;
 
-// if this works: make it a class member
+// if this works: make it members of some class
 queue<goal> goalStreamQueue;
 queue<value> eqvValueQueue;
 queue<goal> ifteQueue;

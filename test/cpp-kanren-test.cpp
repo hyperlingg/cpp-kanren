@@ -384,23 +384,150 @@ BOOST_AUTO_TEST_CASE(reifyOliveOnly) {
 
 // 10.113
 BOOST_AUTO_TEST_CASE(reify_list_of_subs) {
-  auto oilConst = makeConst("oil");
-  auto oliveConst = makeConst("olive");
-
   auto result = reify(x)(sub2);
 
   auto stringRes = getStringValue(result);
   if (stringRes.has_value()) {
-    std::cout << "reify_list_of_subs 1 " << stringRes.value() << std::endl;
+    std::cout << "reify_list_of_subs 1 " << stringRes.value()
+              << std::endl;  // -> _0
   }
 
   result = reify(x)(sub4);
   stringRes = getStringValue(result);
   if (stringRes.has_value()) {
-    std::cout << "reify_list_of_subs 2 " << stringRes.value() << std::endl;
+    std::cout << "reify_list_of_subs 2 " << stringRes.value()
+              << std::endl;  // -> b
   }
   // TODO BOOST_CHECK
 }
+
+BOOST_AUTO_TEST_SUITE_END()
+
+//###########################
+
+// chapter 1
+BOOST_AUTO_TEST_SUITE(playthings)
+
+// frame 1.7
+BOOST_AUTO_TEST_CASE(playthings1) {
+  auto stream = run_goal(10, u_goal());
+  auto reifyLambda = reify(x);
+
+  bool isEmpty;
+  while (stream.next()) {  // length 1
+    std::cout << "playthings1 emptySub? " << stream.getValue().value.empty()
+              << std::endl;
+
+    if (stream.getValue().value.empty()) {
+      isEmpty = true;
+    }
+    auto reifiedStreamElem = reifyLambda(stream.getValue().value);
+  }
+  BOOST_CHECK(isEmpty);
+}
+
+// frame 1.10
+BOOST_AUTO_TEST_CASE(playthings2) {
+  auto pea = makeConst("pea");
+  auto pod = makeConst("pod");
+  auto stream = run_goal(10, eqv(pea, pod));
+  auto reifyLambda = reify(x);  // reify after some fresh var
+
+  value_list ls;
+  bool isEmpty;
+  while (stream.next()) {  // length 1
+    std::cout << "playthings2 emptySub? " << stream.getValue().value.empty()
+              << std::endl;
+
+    if (stream.getValue().value.empty()) {
+      isEmpty = true;
+    }
+
+    auto reifiedStreamElem = reifyLambda(stream.getValue().value);
+  }
+  BOOST_CHECK(isEmpty);
+}
+
+// frame 1.11
+BOOST_AUTO_TEST_CASE(playthings3) {
+  auto pea = makeConst("pea");
+  auto q = makeVar("q");
+  auto stream = run_goal(10, eqv(pea, q));
+  auto reifyLambda = reify(q);  // reify after some fresh var
+
+  atom elemAtom;
+  while (stream.next()) {  // length 1
+    std::cout << "playthings3 emptySub? " << stream.getValue().value.empty()
+              << std::endl;
+
+    auto reifiedStreamElem = reifyLambda(stream.getValue().value);
+
+    if (holds_alternative<atom>(reifiedStreamElem)) {
+      elemAtom = get<atom>(reifiedStreamElem);
+
+      std::cout << "playthings3: elemAtom->data: " << elemAtom->data
+                << std::endl;
+    }
+  }
+  BOOST_CHECK(elemAtom == pea);
+}
+
+// frame 1.12 (first law of eqv)
+BOOST_AUTO_TEST_CASE(playthings3_reversed) {
+  auto pea = makeConst("pea");
+  auto q = makeVar("q");
+  auto stream = run_goal(10, eqv(q, pea));
+  auto reifyLambda = reify(q);  // reify after some fresh var
+
+  atom elemAtom;
+
+  while (stream.next()) {  // length 1
+    std::cout << "playthings4 emptySub? " << stream.getValue().value.empty()
+              << std::endl;
+
+    auto reifiedStreamElem = reifyLambda(stream.getValue().value);
+
+    if (holds_alternative<atom>(reifiedStreamElem)) {
+      elemAtom = get<atom>(reifiedStreamElem);
+
+      std::cout << "playthings3_reversed: elemAtom->data: " << elemAtom->data
+                << std::endl;
+    }
+  }
+  BOOST_CHECK(elemAtom == pea);
+}
+
+// frame 1.17
+BOOST_AUTO_TEST_CASE(playthings4) {
+  auto pea = makeConst("pea");
+  auto q = makeVar("q");
+  auto stream = run_goal(10, s_goal());
+  auto reifyLambda = reify(q);  // reify after some fresh var
+
+  atom elemAtom;
+
+  while (stream.next()) {  // length 1
+    std::cout << "playthings4 emptySub? " << stream.getValue().value.empty()
+              << std::endl;
+
+    auto reifiedStreamElem = reifyLambda(stream.getValue().value);
+
+    if (holds_alternative<atom>(reifiedStreamElem)) {
+      elemAtom = get<atom>(reifiedStreamElem);
+
+      std::cout << "playthings4: elemAtom->data: " << elemAtom->data
+                << std::endl;
+    } else {
+      std::cout << "playthings4: non-atomic " << std::endl;
+    }
+  }
+  BOOST_CHECK(elemAtom->data == "_0");
+}
+
+// TODO frame 1.19
+//  TODO frame 1.20
+// etc. ... .
+// and maybe the applications from chapter 2 are also working if i catch the map to empty?
 
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -445,7 +572,7 @@ BOOST_AUTO_TEST_CASE(cdr_o_test) {
   auto goalAbs = [&](value_list lss1, value_list lss2) -> goal {
     return cdr_o(lss1, lss2);
   };
-  
+
   auto ranGoal = run_goal(10, goalAbs(cdr1, cdr2));
   auto reifyLambda = reify(x);
 
