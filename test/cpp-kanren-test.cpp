@@ -445,7 +445,7 @@ BOOST_AUTO_TEST_CASE(cdr_o_test) {
   auto goalAbs = [&](value_list lss1, value_list lss2) -> goal {
     return cdr_o(lss1, lss2);
   };
-  // auto goalFreshCalled = call_fresh("x", goalAbs);
+  
   auto ranGoal = run_goal(10, goalAbs(cdr1, cdr2));
   auto reifyLambda = reify(x);
 

@@ -130,7 +130,6 @@ value walk_star(value val, substitution sub) {
 }
 
 bool occurs(atom var, value val, substitution sub) {
-  // TODO check var for being a var
   auto walkRes = walk(val, sub);
 
   if (holds_alternative<atom>(walkRes)) {
@@ -143,15 +142,9 @@ bool occurs(atom var, value val, substitution sub) {
   if (holds_alternative<vector<atom>>(walkRes)) {
     auto walkPair = get<vector<atom>>(walkRes);
 
+    bool occ = false;
     for (auto elem : walkPair) {
-      bool occ;
       if (elem->tag == atomValue::VAR) {
-        occ = occurs(var, elem, sub);
-      }
-
-      // TODO is this even necessary?
-      // occur check is interested in vars
-      if (elem->tag == atomValue::CONST) {
         occ = occurs(var, elem, sub);
       }
 
