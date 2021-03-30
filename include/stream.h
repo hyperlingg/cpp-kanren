@@ -60,7 +60,7 @@ struct Stream {
 };
 
 struct stream_elem {
-  enum { SUSPEND, VALUE, ABSTRACTION } tag;
+  enum { SUSPEND, VALUE, ABSTRACTION, EMPTY } tag;
   substitution value;
 };
 

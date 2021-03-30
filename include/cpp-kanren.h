@@ -23,7 +23,7 @@ queue<goal> onceQueue;
 
 #define empty_s ((substitution){})
 #define empty_stream \
-  { stream_elem::VALUE, empty_s }
+  { stream_elem::EMPTY, empty_s }
 
 // based on frame 11
 bool isEmptyS(substitution sub) { return sub.empty(); }
@@ -344,7 +344,7 @@ goal disj(goal g1, goal g2) noexcept {
 Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) noexcept {
   for (int i = 0; i < n; i++) {
     if (s.next()) {
-      if (s.getValue().tag == stream_elem::VALUE) {
+      if (s.getValue().tag == stream_elem::VALUE || s.getValue().tag == stream_elem::EMPTY) {
         co_yield s.getValue();
       } else {
         i--;  // suspension does not carry a value and we want n values
@@ -373,11 +373,12 @@ Stream<stream_elem> eqv_helper(substitution sub) {
   auto unifyRes = unify(u, v, sub);
   if (unifyRes.has_value()) {
     sub = unifyRes.value();
+    stream_elem res = {stream_elem::VALUE, sub};
+    co_yield res;
   } else {
-    sub = {};
+    stream_elem res = empty_stream;
+    co_yield res;
   }
-  stream_elem res = {stream_elem::VALUE, sub};
-  co_yield res;
 }
 
 goal eqv(value u, value v) {
@@ -401,7 +402,7 @@ goal s_goal() {
 }
 
 Stream<stream_elem> u_goal_helper(substitution sub) noexcept {
-  stream_elem res = {stream_elem::VALUE, {}};
+  stream_elem res = empty_stream;
   co_yield res;
 }
 
