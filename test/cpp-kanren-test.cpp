@@ -1,8 +1,9 @@
 #define BOOST_TEST_MODULE cpp - kanren - test
-#include "../include/cpp-kanren.h"
-
+// #include "../include/cpp-kanren.h"
 #include <boost/test/tools/output_test_stream.hpp>
 #include <boost/test/unit_test.hpp>
+
+#include "../include/relations.h"
 
 variable x = makeVar("x");
 variable y = makeVar("y");
@@ -15,6 +16,10 @@ constant a = makeConst("a");
 
 value_list ls = {x, y, a};
 value_list ls2 = {x, makeConst("e"), z};
+value_list ls3 = {makeConst("grape"), a, z};
+
+value_list cdr1 = {makeConst("e"), makeConst("c"), makeConst("e")};
+value_list cdr2 = {x, makeConst("e")};
 
 association assoc1 = {x, y};
 association assoc2 = {y, z};
@@ -194,7 +199,7 @@ BOOST_AUTO_TEST_CASE(eqv_consts_empty_s) {
 BOOST_AUTO_TEST_CASE(eqv_vars_empty_s) {
   auto goal = eqv(x, y);
   auto resStream = goal(empty_s);
-  resStream.next();  // NOTE this is important...
+  resStream.next();  // advance the stream...
   substitution singleton = {{x, y}};
 
   auto resSubTag = resStream.getValue().tag;
@@ -205,7 +210,8 @@ BOOST_AUTO_TEST_CASE(eqv_vars_empty_s) {
 
   BOOST_CHECK((resSubTag == 1) && (resSubValue.size() == 1) &&
               (resSubValue.front().first == x) &&
-              (sndValueAtom->tag == atomValue::VAR) && sndValueAtom == y);
+              (sndValueAtom->tag == atomValue::VAR) && sndValueAtom == y &&
+              !resStream.next());
 }
 
 // frame 10.53
@@ -215,17 +221,17 @@ BOOST_AUTO_TEST_CASE(disj_eqv) {
 
   auto goal = disj(eqv(oliveConst, y), eqv(oilConst, y));
   auto resStream = goal(empty_s);
-  resStream.next();  // NOTE this is important...
+  resStream.next();  // advance the stream...
 
   auto resSubSize = resStream.getValue().value.size();
   atom resSubFstFst = resStream.getValue().value.front().first;
   constant resSubFstSnd =
       get<constant>(resStream.getValue().value.front().second);
 
-  resStream.next();  // NOTE this is important...
+  resStream.next();  // advance the stream...
   atom resSubSndFst = resStream.getValue().value.front().first;
 
-  // and now checking if the "oil" occurs as well...hm, the "olive" does! maybe
+  // and now checking if the "oil" occurs as well... the "olive" does! maybe
   // its just reverse ordered -> yeah that's it.
   constant sndSubSndSnd =
       get<constant>(resStream.getValue().value.front().second);
@@ -240,7 +246,7 @@ BOOST_AUTO_TEST_CASE(disj_neverO) {
 
   auto goal = disj(eqv(oliveConst, x), never_o_goal());
   auto resStream = goal(empty_s);
-  resStream.next();  // NOTE this is important...
+  resStream.next();  // advance the stream...
 
   atom resSubFstFst = resStream.getValue().value.front().first;
   constant resSubFstSnd =
@@ -348,6 +354,33 @@ BOOST_AUTO_TEST_CASE(reifyOliveOil) {
   }
   BOOST_CHECK(atomList.at(0) == oilConst && atomList.at(1) == oliveConst);
 }
+// 10.114 (modified)
+BOOST_AUTO_TEST_CASE(reifyOliveOnly) {
+  auto oilConst = makeConst("oil");
+  auto oliveConst = makeConst("olive");
+
+  auto goal = disj(eqv(oliveConst, y), eqv(oilConst, x));
+
+  auto runGoal = run_goal(5, goal);
+  auto reifyLambda = reify(y);
+
+  vector<value> valueList;
+  while (runGoal.next()) {
+    valueList.push_back(reifyLambda(runGoal.getValue().value));
+  }
+  std::cout << "valueList.size()" << valueList.size() << std::endl;
+
+  vector<atom> atomList;
+  for (auto elem : valueList) {
+    if (holds_alternative<atom>(elem)) {
+      auto elemAtom = get<atom>(elem);
+      atomList.push_back(elemAtom);
+      std::cout << "elemAtom->data: " << elemAtom->data << std::endl;
+    }
+  }
+  // atomList.at(0) == _0    (that's good)
+  BOOST_CHECK(atomList.at(0) != oilConst && atomList.at(1) == oliveConst);
+}
 
 // 10.113
 BOOST_AUTO_TEST_CASE(reify_list_of_subs) {
@@ -369,13 +402,77 @@ BOOST_AUTO_TEST_CASE(reify_list_of_subs) {
   // TODO BOOST_CHECK
 }
 
-goal car_o(value_list p, atom a) {
-  auto goal_abs = [a, p](variable d) -> goal_stream {
-    return eqv(cons(a, d), p);
-  };
-  return call_fresh("x", goal_abs);
+BOOST_AUTO_TEST_SUITE_END()
+
+//###########################
+
+// from chapter 2...there appears to be a bug somewhere...the results are odd.
+BOOST_AUTO_TEST_SUITE(caro_cdro)
+
+BOOST_AUTO_TEST_CASE(car_o_test) {
+  auto goalAbs = [&](variable x) -> goal { return car_o(ls3, x); };
+  auto goalFreshCalled = call_fresh("x", goalAbs);
+  auto ranGoal = run_goal(10, goalAbs(x));
+  auto reifyLambda = reify(x);
+
+  // auto complete = run_goal(10,
+  //                  call_fresh("var",
+  //                   [&](variable var) -> goal {
+  //                    return car_o(ls3, var); }));
+
+  vector<value> valueList;
+  while (ranGoal.next()) {
+    valueList.push_back(reifyLambda(ranGoal.getValue().value));
+  }
+
+  std::cout << "car_o_test: valueList.size()" << valueList.size() << std::endl;
+
+  vector<atom> atomList;
+  for (auto elem : valueList) {
+    if (holds_alternative<atom>(elem)) {
+      auto elemAtom = get<atom>(elem);
+      atomList.push_back(elemAtom);
+      std::cout << "car_o_test: elemAtom->data: " << elemAtom->data
+                << std::endl;
+    } else {
+      std::cout << "i have non-atomic data" << std::endl;
+    }
+  }
 }
 
-BOOST_AUTO_TEST_CASE(car_o_test) {}
+BOOST_AUTO_TEST_CASE(cdr_o_test) {
+  std::cout << "BEGIN cdr_o_test()" << std::endl;
+  auto goalAbs = [&](value_list lss1, value_list lss2) -> goal {
+    return cdr_o(lss1, lss2);
+  };
+  // auto goalFreshCalled = call_fresh("x", goalAbs);
+  auto ranGoal = run_goal(10, goalAbs(cdr1, cdr2));
+  auto reifyLambda = reify(x);
+
+  // auto complete = run_goal(10,
+  //                  call_fresh("var",
+  //                   [&](variable var) -> goal {
+  //                    return car_o(ls3, var); }));
+
+  vector<value> valueList;
+  while (ranGoal.next()) {
+    std::cout << "fst_data" << ranGoal.getValue().value.empty() << std::endl;
+    valueList.push_back(reifyLambda(ranGoal.getValue().value));
+  }
+
+  std::cout << "cdr_o_test: valueList.size()" << valueList.size() << std::endl;
+
+  vector<atom> atomList;
+  for (auto elem : valueList) {
+    if (holds_alternative<atom>(elem)) {
+      auto elemAtom = get<atom>(elem);
+      atomList.push_back(elemAtom);
+      std::cout << "cdr_o_test: elemAtom->data: " << elemAtom->data
+                << std::endl;
+    } else {
+      std::cout << "i have non-atomic data" << std::endl;
+    }
+  }
+}
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -44,6 +44,7 @@ value_list cdr(value_list val) {
   }
 }
 
+// we can cons a single atom to either another atom or a list of atoms
 value_list cons(atom head, value tail) {
   if (holds_alternative<value_list>(tail)) {
     auto valList = get<value_list>(tail);

@@ -65,8 +65,8 @@ struct stream_elem {
 };
 
 using goal_singleton = std::function<stream_elem(substitution)>;
-using goal_stream = std::function<Stream<stream_elem>(substitution)>;
-using goal = variant<goal_singleton, goal_stream>;
+using goal = std::function<Stream<stream_elem>(substitution)>;
+// using goal = variant<goal_singleton, goal_stream>;
 using goal_abstraction = std::function<goal(variable)>;
 
 // exemplary stream generator functions for testing purposes
