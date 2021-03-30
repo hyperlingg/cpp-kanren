@@ -344,7 +344,8 @@ goal disj(goal g1, goal g2) noexcept {
 Stream<stream_elem> take_inf(int n, Stream<stream_elem>& s) noexcept {
   for (int i = 0; i < n; i++) {
     if (s.next()) {
-      if (s.getValue().tag == stream_elem::VALUE || s.getValue().tag == stream_elem::EMPTY) {
+      if (s.getValue().tag == stream_elem::VALUE ||
+          s.getValue().tag == stream_elem::EMPTY) {
         co_yield s.getValue();
       } else {
         i--;  // suspension does not carry a value and we want n values
@@ -491,6 +492,29 @@ Stream<stream_elem> run_goal(int n, goal goal) {
   while (resStream.next()) {
     co_yield resStream.getValue();
   }
+}
+
+vector<value> run(int n, variable reifyVar, goal goal) {
+  // auto reifyVar = makeVar(varname);
+  auto reifyLambda = reify(reifyVar);
+  Stream<stream_elem> stream = run_goal(n, goal);
+
+  stream_elem elem;
+  stream_elem emptyStream = empty_stream;
+  vector<value> resultList;
+
+  while (stream.next()) {
+    elem = stream.getValue();
+
+    if ((elem.tag == emptyStream.tag) && (elem.value == emptyStream.value)) {
+      return {};
+    }
+
+    substitution sub = elem.value;
+    value res = reifyLambda(sub);
+    resultList.push_back(res);
+  }
+  return resultList;
 }
 
 Stream<stream_elem> ifte_helper(substitution sub) {
