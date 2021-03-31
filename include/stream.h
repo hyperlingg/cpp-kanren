@@ -60,7 +60,7 @@ struct Stream {
 };
 
 struct stream_elem {
-  enum { SUSPEND, VALUE, ABSTRACTION, EMPTY } tag;
+  enum { SUSPEND, VALUE, EMPTY } tag;
   substitution value;
 };
 
@@ -78,8 +78,7 @@ Stream<int> getNextInf(int start = 0, int step = 1) noexcept {
   }
 }
 
-Stream<int> getNextFin(int start = 0, int end = 10,
-                               int step = 1) noexcept {
+Stream<int> getNextFin(int start = 0, int end = 10, int step = 1) noexcept {
   auto value = start;
   for (int i = 0; i < end; ++i) {
     co_yield value;
