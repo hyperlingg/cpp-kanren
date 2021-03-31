@@ -1,15 +1,30 @@
 # cpp-kanren
-An implementation of mini-kanren in C++
+An implementation of mini-kanren using modern C++
 
 # Build instructions
-Preliminaries are
-* `gcc` version 9.3.0 (or at least full support of C++ 17)
+Prerequisites are
+* `gcc` version 11.0.0 (experimental)
 * `CMake` version 3.0 or larger
 
 If you want to run tests
 * `Boost` version 1.71 or larger
 
-## Basic build
+# gcc-11 source build
+Needs to be built from source for most platforms:
+https://gcc.gnu.org/install/index.html
+
+Warning: takes very very long (hours) and may fail (after hours...) because of some prerequisites missing etc. . I could also demonstrate that the tests run successfully via screen sharing if you'd like to save some time.
+## configuration parameter
+../gcc-10/configure --disable-multilib
+
+## A `libstdc++` problem that occured 
+If gcc-11 is installed in the default directory /usr/local then it will use an outdated libstdc++.
+Setting the load library path new helps, e.g.:
+```
+export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
+```
+
+# minikanren build
 ```
 mkdir build
 cd build
@@ -17,7 +32,7 @@ cmake ../
 cmake --build .
 ```
 
-## Build and run tests
+## build and run testcases
 ```
 cd test
 mkdir test_build
@@ -25,30 +40,5 @@ cd test_build
 cmake ../
 cmake --build .
 ```
+All tests (except the last one) run successfully.
 
-# design draft
-
-## fresh variables
-### type
-```
-using variable = shared_ptr<std::string>
-```
-### construction of a variable "var"
-```
-make_shared<std::string>("var");
-```
-### rationale
-since pointers refer to a space in memory rather than a value, they
-allow us to distinguish variables with the same name. Using `shared_ptr` of C++
-ensures the absence of `new`/`delete` related memory leaks.
-
-# gcc-11 source build
-## configuration
-../gcc-10/configure --disable-multilib
-
-## `libstdc++` problems
-If gcc-11 is installed in the default directory /usr/local then it will use an outdated libstdc++.
-Setting the load library path new helps, e.g.:
-```
-export LD_LIBRARY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH
-```
