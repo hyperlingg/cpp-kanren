@@ -119,4 +119,18 @@ int main() {
 
   std::cout << "streamValueSize: " << streamValueSize << std::endl;
   std::cout << "singleton size: " << singleton.size() << std::endl;
+
+  // ####################
+  // cons testing
+
+  cons ls = cons((atom)x, (atom)y);
+  // auto carLs = ;
+  auto lsCar = ls.car();
+  if (lsCar) {
+    if (isAtom(lsCar)) {
+      auto atmCar = getAtom(lsCar);
+      std::cout << atmCar->data << std::endl;
+    }
+    auto deref = *lsCar;
+  }
 }

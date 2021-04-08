@@ -7,6 +7,7 @@ Author : Jonas Lingg (2021)
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -23,6 +24,7 @@ using atom = shared_ptr<atomValue>;
 using variable = atom;
 using constant = atom;
 using value_list = vector<atom>;  // TODO no real list of list yet
+
 using value = variant<atom,
                       value_list>;  // a list of values is also a value
 using association = pair<atom, value>;
@@ -30,40 +32,64 @@ using association = pair<atom, value>;
 // frames 9,10
 using substitution = vector<association>;
 
+class cons {
+  using value_type = variant<cons, atom>;
+  using cons_value = shared_ptr<value_type>;
 
-value car(value_list val) { return val.front(); }
+ private:
+  cons_value carPtr;
+  cons_value cdrPtr;
 
-value_list cdr(value_list val) {
-  if (!val.empty()) {
-    val.erase(val.begin());
-    return val;
-  } else {
-    return {};
+ public:
+  cons_value car() { return carPtr; }
+
+  cons_value cdr() { return cdrPtr; }
+
+  cons(value_type a, value_type b) {
+    if (holds_alternative<atom>(a)) {
+      atom atmVal = get<atom>(a);
+      carPtr = make_shared<value_type>(atmVal);
+    } else if (holds_alternative<cons>(a)) {
+      cons consVal = get<cons>(a);
+      carPtr = make_shared<value_type>(consVal);
+    }
+
+    if (holds_alternative<atom>(b)) {
+      atom atmVal = get<atom>(b);
+      cdrPtr = make_shared<value_type>(atmVal);
+    } else if (holds_alternative<cons>(b)) {
+      cons consVal = get<cons>(b);
+      cdrPtr = make_shared<value_type>(consVal);
+    }
   }
-}
-
-// we can cons a single atom to either another atom or a list of atoms
-value_list cons(atom head, value tail) {
-  if (holds_alternative<value_list>(tail)) {
-    auto valList = get<value_list>(tail);
-    valList.insert(valList.begin(), head);
-    return valList;
-  } else {
-    auto valAtom = get<atom>(tail);
-    return {head, valAtom};
-  }
-}
-
-// NOTE ok, this seems to work as an arbitrary-depth list implementation
-struct List {
-  variant<atom, unique_ptr<List>> head;
-  unique_ptr<List> tail;
 };
 
-atomValue val2 = {atomValue::VAR, "a"};
-atom val1 = make_shared<atomValue>(val2);
+// TODO this redefinition is inelegant...
+using value_type = variant<cons, atom>;
+using cons_value = shared_ptr<value_type>;
 
-List testList = {val1, make_unique<List>(val1, nullptr)};
+bool isPair(cons_value val) { return val && holds_alternative<cons>(*val); }
 
-List testList2 = {make_unique<List>(val1, make_unique<List>(val1, nullptr)),
-                  make_unique<List>(val1, nullptr)};
+cons getPair(cons_value val) {  // throws exception if !isPair(val)
+  try {
+    return get<cons>(*val);
+  } catch (std::bad_variant_access const& ex) {
+    std::cout << ex.what() << ": val contained atom, not cons\n";
+    throw;
+  }
+}
+
+bool isAtom(cons_value val) { return val && holds_alternative<atom>(*val); }
+
+atom getAtom(cons_value val) {  // throws exception if !isAtom(val)
+  try {
+    return get<atom>(*val);
+  } catch (std::bad_variant_access const& ex) {
+    std::cout << ex.what() << ": val contained cons, not atom\n";
+    throw;
+  }
+}
+
+// temporary aliases used for integration
+using value_list_new = cons;
+using value_new = variant<atom, value_list_new>;

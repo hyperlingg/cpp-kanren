@@ -12,7 +12,7 @@ set(Boost_ADDITIONAL_VERSIONS "1.71" "1.71.0")
 # finds boost, triggers an error otherwise
 find_package(Boost 1.71 REQUIRED COMPONENTS unit_test_framework)
 
-add_definitions( "-fcoroutines -fno-exceptions" )
+add_definitions( "-fcoroutines -fexceptions") #-fno-exceptions" )
 add_subdirectory(../include
              [EXCLUDE_FROM_ALL])
 

@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_INSTALL_RPATH "/usr/local/lib64/")
 
 
-add_definitions( "-fcoroutines -fno-exceptions" )
+add_definitions( "-fcoroutines -fexceptions") #-fno-exceptions" )
 add_subdirectory(include)
 
 file(GLOB SOURCES "*.cpp")
